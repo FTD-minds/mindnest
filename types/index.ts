@@ -1,10 +1,14 @@
-// ─── Subscriptions ───────────────────────────────────────────────────────────
+// ─── Parent type ──────────────────────────────────────────────────────────────
+
+export type ParentType = 'mom' | 'dad' | 'partner'
+
+// ─── Subscriptions ────────────────────────────────────────────────────────────
 
 export type Plan = 'monthly' | 'annual' | 'lifetime'
 
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing' | 'unpaid' | 'paused'
 
-// ─── Profiles ────────────────────────────────────────────────────────────────
+// ─── Profiles ─────────────────────────────────────────────────────────────────
 
 export interface Profile {
   id: string
@@ -13,10 +17,11 @@ export interface Profile {
   avatar_url: string | null
   onboarding_complete: boolean
   timezone: string
+  parent_type: ParentType | null
   created_at: string
 }
 
-// ─── Babies ──────────────────────────────────────────────────────────────────
+// ─── Babies ───────────────────────────────────────────────────────────────────
 
 export interface Baby {
   id: string
@@ -27,7 +32,7 @@ export interface Baby {
   avatar_url: string | null
 }
 
-// ─── Subscriptions ───────────────────────────────────────────────────────────
+// ─── Subscriptions ────────────────────────────────────────────────────────────
 
 export interface Subscription {
   id: string
@@ -40,7 +45,7 @@ export interface Subscription {
   cancel_at_period_end: boolean
 }
 
-// ─── Chat ────────────────────────────────────────────────────────────────────
+// ─── Chat ─────────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -59,7 +64,7 @@ export interface NestSession {
   created_at: string
 }
 
-// ─── Activities ──────────────────────────────────────────────────────────────
+// ─── Activities ───────────────────────────────────────────────────────────────
 
 export interface Activity {
   id: string
@@ -84,7 +89,7 @@ export interface ActivityCompletion {
   rating: number | null
 }
 
-// ─── Activity Logs ───────────────────────────────────────────────────────────
+// ─── Activity Logs ────────────────────────────────────────────────────────────
 
 export type ActivityLogType = 'feeding' | 'sleep' | 'diaper' | 'mood' | 'note' | 'milestone'
 export type FeedingType     = 'breast' | 'bottle_breast_milk' | 'bottle_formula' | 'solid' | 'mixed'
@@ -111,7 +116,7 @@ export interface ActivityLog {
   milestone_photo_url?: string
 }
 
-// ─── Wellness ────────────────────────────────────────────────────────────────
+// ─── Wellness ─────────────────────────────────────────────────────────────────
 
 export type MoodLevel = 'very_low' | 'low' | 'neutral' | 'good' | 'great'
 
@@ -134,7 +139,7 @@ export interface WellnessCheckin {
   created_at: string
 }
 
-// ─── UI Helpers ──────────────────────────────────────────────────────────────
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
 
 export interface NavItem {
   label: string

@@ -1,7 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED_PATHS = ['/dashboard', '/nest', '/activities', '/checkin']
+// Authenticated users must be logged in to access these paths
+const PROTECTED_PATHS = ['/dashboard', '/nest', '/activities', '/checkin', '/onboarding']
+// Authenticated users are redirected away from these paths
 const AUTH_PATHS      = ['/login', '/signup']
 
 export async function updateSession(request: NextRequest) {
@@ -27,7 +29,6 @@ export async function updateSession(request: NextRequest) {
   )
 
   // IMPORTANT: Do not add any logic between createServerClient and getUser().
-  // getUser() validates the session JWT with Supabase Auth and refreshes the cookie.
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
