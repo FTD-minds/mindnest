@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Card } from '@/components/ui/card'
-import { Badge, brainAreaVariant } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { LockIcon, CheckIcon, StarIcon } from '@/components/ui/icons'
+import { Button } from '@/components/ui/button'
 import type { Activity } from '@/types'
 
 interface ActivityCardProps {
@@ -30,8 +28,6 @@ export function ActivityCard({
 
   const isLocked = activity.is_premium && !isPremiumUser
 
-  const brainVariant = brainAreaVariant[activity.brain_area] ?? 'gray'
-
   async function handleComplete() {
     if (isLocked || done || completing) return
     setCompleting(true)
@@ -44,96 +40,110 @@ export function ActivityCard({
   }
 
   return (
-    <Card className="relative overflow-hidden">
+    <div className="relative bg-white rounded-2xl border border-sage-200 overflow-hidden">
       {/* Premium lock overlay */}
       {isLocked && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-2 rounded-2xl">
-          <LockIcon size={24} className="text-amber-500" />
-          <p className="text-sm font-medium text-gray-600">Premium Activity</p>
-          <p className="text-xs text-gray-400">Upgrade to unlock all activities</p>
+        <div className="absolute inset-0 bg-white/85 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-2 rounded-2xl">
+          <LockIcon size={20} className="text-sage-400" />
+          <p className="text-xs font-medium text-sage-500">Premium Activity</p>
+          <p className="text-[10px] text-sage-400 uppercase tracking-wider">Upgrade to unlock</p>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            <Badge variant={brainVariant}>{activity.brain_area}</Badge>
-            {activity.is_premium && <Badge variant="premium">✦ Premium</Badge>}
-          </div>
-          <h3 className="font-semibold text-gray-800 leading-snug">{activity.title}</h3>
+      <div className="px-6 pt-6 pb-5">
+        {/* Meta row */}
+        <div className="flex items-start justify-between mb-1">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400">
+            {activity.brain_area}
+            {activity.is_premium && (
+              <span className="ml-3 text-warm-500">Premium</span>
+            )}
+          </p>
+          {done && (
+            <span className="w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+              <CheckIcon size={11} className="text-brand-600" />
+            </span>
+          )}
         </div>
-        {done && (
-          <span className="flex-shrink-0 w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
-            <CheckIcon size={14} className="text-sage-600" />
-          </span>
-        )}
-      </div>
 
-      {/* Description */}
-      <p className="text-sm text-gray-500 leading-relaxed mb-3">{activity.description}</p>
+        {/* Title */}
+        <h3 className="font-display text-[1.15rem] italic text-brand-900 leading-snug mb-3">
+          {activity.title}
+        </h3>
 
-      {/* Meta row */}
-      <div className="flex flex-wrap gap-3 text-xs text-gray-400 mb-4">
-        <span>⏱ {activity.duration_min} min</span>
-        <span>👶 {activity.min_age_months}–{activity.max_age_months} months</span>
-        {activity.materials_needed.length > 0 && (
-          <span>🧸 {activity.materials_needed.join(', ')}</span>
-        )}
-      </div>
+        {/* Description */}
+        <p className="text-sm text-sage-500 leading-relaxed mb-4">
+          {activity.description}
+        </p>
 
-      {/* Instructions toggle */}
-      <button
-        onClick={() => setShowInstructions(v => !v)}
-        className="text-xs text-brand-600 font-medium hover:underline mb-3 block"
-      >
-        {showInstructions ? 'Hide instructions' : 'Show instructions'}
-      </button>
-
-      {showInstructions && (
-        <div className="bg-sage-50 rounded-xl p-4 mb-4 text-sm text-sage-700 leading-relaxed whitespace-pre-wrap">
-          {activity.instructions}
+        {/* Meta data */}
+        <div className="flex gap-4 text-[11px] text-sage-400 mb-4">
+          <span>{activity.duration_min} min</span>
+          <span className="text-sage-200">/</span>
+          <span>{activity.min_age_months}–{activity.max_age_months} months</span>
+          {activity.materials_needed.length > 0 && (
+            <>
+              <span className="text-sage-200">/</span>
+              <span className="truncate">{activity.materials_needed.join(', ')}</span>
+            </>
+          )}
         </div>
-      )}
 
-      {/* Rating (post-completion) */}
-      {done && (
-        <div className="flex items-center gap-1 mb-4">
-          <span className="text-xs text-gray-400 mr-1">Rate it:</span>
-          {[1, 2, 3, 4, 5].map(star => (
-            <button
-              key={star}
-              onMouseEnter={() => setHoveredStar(star)}
-              onMouseLeave={() => setHoveredStar(0)}
-              onClick={() => setRating(star)}
-              className="focus:outline-none"
-            >
-              <StarIcon
-                size={18}
-                className={(
-                  star <= (hoveredStar || rating)
-                    ? 'text-amber-400 fill-amber-400'
-                    : 'text-gray-300'
-                )}
-              />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Action button */}
-      {!done && (
-        <Button
-          variant="primary"
-          size="sm"
-          loading={completing}
-          onClick={handleComplete}
-          disabled={isLocked}
-          className="w-full"
+        {/* Instructions toggle */}
+        <button
+          onClick={() => setShowInstructions(v => !v)}
+          className="text-[11px] uppercase tracking-[0.15em] text-brand-600 hover:text-brand-700 transition-colors mb-3"
         >
-          Mark Complete
-        </Button>
-      )}
-    </Card>
+          {showInstructions ? 'Hide steps' : 'How to do it'}
+        </button>
+
+        {showInstructions && (
+          <div className="bg-sage-50 rounded-xl px-5 py-4 mb-4 text-sm text-sage-600 leading-relaxed whitespace-pre-wrap border-l-2 border-brand-200">
+            {activity.instructions}
+          </div>
+        )}
+
+        {/* Star rating — post-completion only */}
+        {done && (
+          <div className="flex items-center gap-1 mb-4">
+            <span className="text-[10px] uppercase tracking-wider text-sage-400 mr-2">Rate</span>
+            {[1, 2, 3, 4, 5].map(star => (
+              <button
+                key={star}
+                onMouseEnter={() => setHoveredStar(star)}
+                onMouseLeave={() => setHoveredStar(0)}
+                onClick={() => setRating(star)}
+                className="focus:outline-none transition-colors"
+              >
+                <StarIcon
+                  size={16}
+                  className={
+                    star <= (hoveredStar || rating)
+                      ? 'text-brand-500 fill-brand-500'
+                      : 'text-sage-300'
+                  }
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Complete button */}
+        {!done && (
+          <button
+            onClick={handleComplete}
+            disabled={isLocked || completing}
+            className="
+              w-full mt-1 py-2.5 rounded-xl border border-brand-200
+              text-[11px] uppercase tracking-[0.18em] text-brand-600
+              hover:bg-brand-50 hover:border-brand-300 transition-all
+              disabled:opacity-40 disabled:cursor-not-allowed
+            "
+          >
+            {completing ? 'Saving…' : 'Mark Complete'}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }

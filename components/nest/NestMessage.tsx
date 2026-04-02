@@ -10,7 +10,7 @@ export function NestMessage({ message }: NestMessageProps) {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] bg-brand-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed">
+        <div className="max-w-[78%] bg-brand-600 text-white rounded-2xl rounded-tr-sm px-5 py-3.5 text-sm leading-relaxed">
           {message.content}
         </div>
       </div>
@@ -18,12 +18,11 @@ export function NestMessage({ message }: NestMessageProps) {
   }
 
   return (
-    <div className="flex items-end gap-2">
-      {/* Nest avatar */}
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-brand-200 flex items-center justify-center text-brand-700 text-xs font-bold">
-        N
+    <div className="flex items-end gap-2.5">
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center">
+        <span className="font-display italic text-brand-700 text-[11px]">N</span>
       </div>
-      <div className="max-w-[75%] bg-white border border-sage-100 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-gray-700 leading-relaxed shadow-sm">
+      <div className="max-w-[78%] bg-warm-100 border border-warm-400 rounded-2xl rounded-bl-sm px-5 py-3.5 text-sm text-brand-900 leading-relaxed">
         {message.content}
       </div>
     </div>
