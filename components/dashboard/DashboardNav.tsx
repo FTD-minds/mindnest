@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation'
 import { HomeIcon, MessageCircleIcon, ActivityIcon, HeartIcon } from '@/components/ui/icons'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard',  Icon: HomeIcon          },
-  { label: 'Nest',      href: '/nest',        Icon: MessageCircleIcon },
-  { label: 'Activities',href: '/activities',  Icon: ActivityIcon      },
-  { label: 'Check-in',  href: '/checkin',     Icon: HeartIcon         },
+  { label: 'Home',       href: '/dashboard',  Icon: HomeIcon          },
+  { label: 'Nest',       href: '/nest',        Icon: MessageCircleIcon },
+  { label: 'Activities', href: '/activities',  Icon: ActivityIcon      },
+  { label: 'Check-in',   href: '/checkin',     Icon: HeartIcon         },
 ]
 
 export function DashboardNav() {
@@ -17,15 +17,15 @@ export function DashboardNav() {
   return (
     <>
       {/* ── Desktop sidebar ───────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r border-sage-100 z-30">
-        {/* Logo */}
-        <div className="px-6 py-6 border-b border-sage-100">
-          <span className="text-2xl font-bold text-brand-700">MindNest</span>
-          <p className="text-xs text-sage-500 mt-0.5 italic">Every age. Every stage.</p>
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r border-sage-200 z-30">
+        <div className="px-7 pt-8 pb-7 border-b border-sage-100">
+          <span className="font-display text-2xl italic text-brand-900 block">MindNest</span>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mt-1">
+            Nest has you covered.
+          </p>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-5 space-y-0.5">
           {NAV_ITEMS.map(({ label, href, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -33,31 +33,32 @@ export function DashboardNav() {
                 key={href}
                 href={href}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
-                  transition-colors
+                  flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm
+                  transition-colors duration-150
                   ${
                     active
-                      ? 'bg-brand-50 text-brand-700'
-                      : 'text-gray-500 hover:bg-sage-50 hover:text-sage-800'
+                      ? 'bg-brand-50 text-brand-700 font-medium'
+                      : 'text-sage-500 hover:bg-sage-100 hover:text-brand-900'
                   }
                 `}
               >
-                <Icon size={18} />
-                {label}
-                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-500" />}
+                <Icon size={17} />
+                <span>{label}</span>
+                {active && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-600" />
+                )}
               </Link>
             )
           })}
         </nav>
 
-        {/* Footer tagline */}
-        <div className="px-6 py-4 border-t border-sage-100">
-          <p className="text-xs text-sage-400 italic">Nest has you covered.</p>
+        <div className="px-7 py-5 border-t border-sage-100">
+          <p className="text-[10px] text-sage-400 italic">Every age. Every stage.</p>
         </div>
       </aside>
 
       {/* ── Mobile bottom nav ─────────────────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-sage-100">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-sage-100">
         <div className="flex">
           {NAV_ITEMS.map(({ label, href, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
@@ -66,14 +67,18 @@ export function DashboardNav() {
                 key={href}
                 href={href}
                 className={`
-                  flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium
-                  transition-colors
-                  ${active ? 'text-brand-600' : 'text-gray-400'}
+                  flex-1 flex flex-col items-center gap-1 pt-3 pb-5
+                  text-[10px] tracking-wide transition-colors
+                  ${active ? 'text-brand-600' : 'text-sage-400'}
                 `}
               >
                 <Icon size={20} />
-                <span>{label}</span>
-                {active && <span className="w-1 h-1 rounded-full bg-brand-500" />}
+                <span className={active ? 'font-medium' : ''}>{label}</span>
+                <span
+                  className={`w-4 h-0.5 rounded-full transition-colors ${
+                    active ? 'bg-brand-600' : 'bg-transparent'
+                  }`}
+                />
               </Link>
             )
           })}
