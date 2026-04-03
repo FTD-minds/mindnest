@@ -139,6 +139,21 @@ export interface WellnessCheckin {
   created_at: string
 }
 
+// ─── Community ────────────────────────────────────────────────────────────────
+
+export interface CommunityPost {
+  id:               string
+  user_id:          string
+  content:          string
+  baby_age_months:  number | null
+  likes_count:      number
+  liked_by_me:      boolean
+  nest_reply:       string | null
+  nest_replied_at:  string | null
+  created_at:       string
+  profiles:         { full_name: string } | null
+}
+
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
 export interface NavItem {

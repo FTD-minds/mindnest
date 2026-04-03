@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, MessageCircleIcon, ActivityIcon, HeartIcon } from '@/components/ui/icons'
+import { HomeIcon, MessageCircleIcon, ActivityIcon, HeartIcon, UsersIcon } from '@/components/ui/icons'
 
 const NAV_ITEMS = [
   { label: 'Home',       href: '/dashboard',  Icon: HomeIcon          },
   { label: 'Nest',       href: '/nest',        Icon: MessageCircleIcon },
   { label: 'Activities', href: '/activities',  Icon: ActivityIcon      },
+  { label: 'Community',  href: '/community',   Icon: UsersIcon         },
   { label: 'Check-in',   href: '/checkin',     Icon: HeartIcon         },
 ]
 
