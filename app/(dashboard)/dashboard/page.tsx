@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
+import { BabySwitcher } from '@/components/dashboard/BabySwitcher'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -33,39 +34,47 @@ export default async function DashboardPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Fetch profile for name
-  const { data: profile } = user
-    ? await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-    : { data: null }
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-sage-50 px-5 pt-10 max-w-xl mx-auto">
+        <p className="text-sage-400 text-sm">
+          <Link href="/login" className="text-brand-600 underline">Sign in</Link> to continue.
+        </p>
+      </div>
+    )
+  }
 
-  // Fetch baby
-  const { data: babies } = user
-    ? await supabase
-        .from('babies')
-        .select('id, name, date_of_birth')
-        .eq('user_id', user.id)
-        .limit(1)
-    : { data: null }
+  // Profile — includes full_name + selected_baby_id
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, selected_baby_id')
+    .eq('id', user.id)
+    .single()
 
-  const baby = babies?.[0] ?? null
+  // All babies for switcher
+  const { data: babies } = await supabase
+    .from('babies')
+    .select('id, name, date_of_birth')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
 
-  // Fetch subscription
-  const { data: sub } = user
-    ? await supabase
-        .from('subscriptions')
-        .select('status, plan')
-        .eq('user_id', user.id)
-        .single()
-    : { data: null }
+  const allBabies = babies ?? []
+
+  // Resolve selected baby: prefer stored selection, fall back to first
+  const selectedId = profile?.selected_baby_id ?? allBabies[0]?.id ?? null
+  const baby = allBabies.find(b => b.id === selectedId) ?? allBabies[0] ?? null
+
+  // Subscription
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('status, plan')
+    .eq('user_id', user.id)
+    .single()
 
   const isPremiumUser =
     sub?.status === 'active' || sub?.status === 'trialing' || sub?.plan === 'lifetime'
 
-  // Fetch 3 activities for dashboard preview
+  // Activities + completions for selected baby
   let activities: any[] = []
   let ageMonths = 0
   let completedToday: string[] = []
@@ -89,7 +98,7 @@ export default async function DashboardPage() {
     const { data: completions } = await supabase
       .from('activity_completions')
       .select('activity_id')
-      .eq('user_id', user!.id)
+      .eq('user_id', user.id)
       .eq('baby_id', baby.id)
       .eq('completed_date', today)
 
@@ -102,7 +111,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-sage-50 px-5 pt-10 pb-28 lg:pb-10 max-w-xl mx-auto">
 
       {/* ── Greeting ──────────────────────────────────────────────────────── */}
-      <header className="mb-10">
+      <header className="mb-8">
         <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-4 font-medium">
           {todayLabel()}
         </p>
@@ -119,6 +128,12 @@ export default async function DashboardPage() {
           </div>
         )}
       </header>
+
+      {/* ── Baby switcher (only shown when 2+ babies) ─────────────────────── */}
+      <BabySwitcher
+        babies={allBabies.map(b => ({ id: b.id, name: b.name }))}
+        selectedBabyId={selectedId}
+      />
 
       {/* ── Talk to Nest ──────────────────────────────────────────────────── */}
       <Link href="/nest" className="block mb-5">
@@ -172,8 +187,14 @@ export default async function DashboardPage() {
               No activities yet
             </p>
             <p className="text-xs text-sage-400 leading-relaxed">
-              Complete your baby's profile to unlock<br />age-matched activities.
+              Add your baby's profile to unlock age-matched activities.
             </p>
+            <Link
+              href="/profile/add-baby"
+              className="inline-block mt-3 text-[11px] uppercase tracking-wider text-brand-600 hover:text-brand-700"
+            >
+              Add baby →
+            </Link>
           </div>
         )}
       </section>

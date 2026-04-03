@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, MessageCircleIcon, ActivityIcon, HeartIcon, UsersIcon } from '@/components/ui/icons'
+import { HomeIcon, MessageCircleIcon, ActivityIcon, HeartIcon, UsersIcon, UserIcon } from '@/components/ui/icons'
 
 const NAV_ITEMS = [
   { label: 'Home',       href: '/dashboard',  Icon: HomeIcon          },
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: 'Activities', href: '/activities',  Icon: ActivityIcon      },
   { label: 'Community',  href: '/community',   Icon: UsersIcon         },
   { label: 'Check-in',   href: '/checkin',     Icon: HeartIcon         },
+  { label: 'Profile',    href: '/profile',     Icon: UserIcon          },
 ]
 
 export function DashboardNav() {

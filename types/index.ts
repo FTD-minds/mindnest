@@ -18,6 +18,7 @@ export interface Profile {
   onboarding_complete: boolean
   timezone: string
   parent_type: ParentType | null
+  selected_baby_id: string | null
   created_at: string
 }
 

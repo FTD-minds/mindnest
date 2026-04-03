@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
+import { BabySwitcher } from '@/components/dashboard/BabySwitcher'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -28,21 +29,32 @@ export default async function ActivitiesPage() {
   if (!user) {
     return (
       <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
-        <p className="text-sage-400 text-sm">Please <Link href="/login" className="text-brand-600 underline">sign in</Link> to see activities.</p>
+        <p className="text-sage-400 text-sm">
+          Please <Link href="/login" className="text-brand-600 underline">sign in</Link> to see activities.
+        </p>
       </div>
     )
   }
 
-  // Fetch baby profile
+  // Profile for selected_baby_id
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('selected_baby_id')
+    .eq('id', user.id)
+    .single()
+
+  // All babies for switcher
   const { data: babies } = await supabase
     .from('babies')
     .select('id, name, date_of_birth')
     .eq('user_id', user.id)
-    .limit(1)
+    .order('created_at', { ascending: true })
 
-  const baby = babies?.[0] ?? null
+  const allBabies = babies ?? []
+  const selectedId = profile?.selected_baby_id ?? allBabies[0]?.id ?? null
+  const baby = allBabies.find(b => b.id === selectedId) ?? allBabies[0] ?? null
 
-  // Fetch subscription status
+  // Subscription
   const { data: sub } = await supabase
     .from('subscriptions')
     .select('status, plan')
@@ -63,9 +75,15 @@ export default async function ActivitiesPage() {
         </header>
         <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-8 text-center">
           <p className="font-display text-base italic text-sage-400 mb-1">No baby profile yet</p>
-          <p className="text-xs text-sage-400 leading-relaxed">
-            Complete your baby's profile to unlock<br />age-matched activities.
+          <p className="text-xs text-sage-400 leading-relaxed mb-3">
+            Add your baby's profile to unlock age-matched activities.
           </p>
+          <Link
+            href="/profile/add-baby"
+            className="text-[11px] uppercase tracking-wider text-brand-600 hover:text-brand-700"
+          >
+            Add baby →
+          </Link>
         </div>
       </div>
     )
@@ -74,7 +92,6 @@ export default async function ActivitiesPage() {
   const ageMonths = getAgeMonths(baby.date_of_birth)
   const band = getAgeBand(ageMonths)
 
-  // Fetch activities for baby's age band
   const { data: activities } = await supabase
     .from('daily_activities')
     .select('*')
@@ -83,7 +100,6 @@ export default async function ActivitiesPage() {
     .eq('is_active', true)
     .order('created_at', { ascending: true })
 
-  // Fetch today's completions for this baby
   const today = new Date().toISOString().split('T')[0]
   const { data: completions } = await supabase
     .from('activity_completions')
@@ -97,11 +113,11 @@ export default async function ActivitiesPage() {
   const ageLabel =
     ageMonths < 12
       ? `${ageMonths} month${ageMonths !== 1 ? 's' : ''}`
-      : `${Math.floor(ageMonths / 12)} year${Math.floor(ageMonths / 12) !== 1 ? 's' : ''}${ageMonths % 12 ? ` ${ageMonths % 12}mo` : ''}`
+      : `${Math.floor(ageMonths / 12)}y${ageMonths % 12 ? ` ${ageMonths % 12}mo` : ''}`
 
   return (
     <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Daily Practice</p>
         <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">
           Today's Activities
@@ -110,6 +126,11 @@ export default async function ActivitiesPage() {
           Matched to {baby.name} · {ageLabel} old
         </p>
       </header>
+
+      <BabySwitcher
+        babies={allBabies.map(b => ({ id: b.id, name: b.name }))}
+        selectedBabyId={selectedId}
+      />
 
       <ActivityFeed
         initialActivities={activities ?? []}
