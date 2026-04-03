@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { BabySwitcher } from '@/components/dashboard/BabySwitcher'
+import { TwinsPanel } from '@/components/dashboard/TwinsPanel'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -51,10 +52,10 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  // All babies for switcher
+  // All babies for switcher (include twin fields)
   const { data: babies } = await supabase
     .from('babies')
-    .select('id, name, date_of_birth')
+    .select('id, name, date_of_birth, is_twin, twin_sibling_id')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
 
@@ -134,6 +135,14 @@ export default async function DashboardPage() {
         babies={allBabies.map(b => ({ id: b.id, name: b.name }))}
         selectedBabyId={selectedId}
       />
+
+      {/* ── Twins panel (only shown when selected baby has a linked twin) ── */}
+      {baby?.is_twin && baby?.twin_sibling_id && (() => {
+        const twin = allBabies.find(b => b.id === baby.twin_sibling_id)
+        return twin ? (
+          <TwinsPanel baby={baby} twin={twin} />
+        ) : null
+      })()}
 
       {/* ── Talk to Nest ──────────────────────────────────────────────────── */}
       <Link href="/nest" className="block mb-5">

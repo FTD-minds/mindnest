@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
+import { LinkTwinsButton } from '@/components/profile/LinkTwinsButton'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -24,7 +25,9 @@ export default async function ProfilePage() {
   if (!user) {
     return (
       <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
-        <p className="text-sage-400 text-sm">Please <Link href="/login" className="text-brand-600 underline">sign in</Link>.</p>
+        <p className="text-sage-400 text-sm">
+          Please <Link href="/login" className="text-brand-600 underline">sign in</Link>.
+        </p>
       </div>
     )
   }
@@ -37,12 +40,15 @@ export default async function ProfilePage() {
 
   const { data: babies } = await supabase
     .from('babies')
-    .select('id, name, date_of_birth, gender')
+    .select('id, name, date_of_birth, gender, is_twin, twin_sibling_id')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
 
   const allBabies = babies ?? []
   const canAddMore = allBabies.length < 6
+  // Can only offer twin-linking if there are exactly 2+ unlinked babies
+  const unlinkedBabies = allBabies.filter(b => !b.is_twin)
+  const canLinkTwins = unlinkedBabies.length >= 2
 
   return (
     <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
@@ -71,9 +77,13 @@ export default async function ProfilePage() {
         </div>
 
         <div className="space-y-3">
-          {allBabies.map((baby, index) => {
-            const months = getAgeMonths(baby.date_of_birth)
+          {allBabies.map(baby => {
+            const months  = getAgeMonths(baby.date_of_birth)
             const isSelected = baby.id === (profile?.selected_baby_id ?? allBabies[0]?.id)
+            const twin    = baby.twin_sibling_id
+              ? allBabies.find(b => b.id === baby.twin_sibling_id)
+              : null
+
             return (
               <div
                 key={baby.id}
@@ -89,8 +99,18 @@ export default async function ProfilePage() {
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-brand-900">{baby.name}</p>
-                    <p className="text-[11px] text-sage-400">{ageLabel(months)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-brand-900">{baby.name}</p>
+                      {baby.is_twin && (
+                        <span className="text-[9px] uppercase tracking-wider bg-warm-200 text-warm-700 px-2 py-0.5 rounded-full font-medium">
+                          Twin
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-sage-400">
+                      {ageLabel(months)}
+                      {twin && ` · Twin of ${twin.name}`}
+                    </p>
                   </div>
                 </div>
                 {isSelected && (
@@ -109,20 +129,30 @@ export default async function ProfilePage() {
           )}
         </div>
 
-        {canAddMore ? (
-          <Link
-            href="/profile/add-baby"
-            className="
-              mt-3 flex items-center justify-center gap-2 w-full
-              py-3 rounded-2xl border-2 border-dashed border-sage-200
-              text-[11px] uppercase tracking-[0.18em] text-sage-400
-              hover:border-brand-300 hover:text-brand-600 transition-colors
-            "
-          >
-            <span className="text-lg leading-none">+</span>
-            <span>Add another child</span>
-          </Link>
-        ) : (
+        <div className="mt-3 space-y-2">
+          {canAddMore && (
+            <Link
+              href="/profile/add-baby"
+              className="
+                flex items-center justify-center gap-2 w-full
+                py-3 rounded-2xl border-2 border-dashed border-sage-200
+                text-[11px] uppercase tracking-[0.18em] text-sage-400
+                hover:border-brand-300 hover:text-brand-600 transition-colors
+              "
+            >
+              <span className="text-lg leading-none">+</span>
+              <span>Add another child</span>
+            </Link>
+          )}
+
+          {canLinkTwins && (
+            <LinkTwinsButton
+              babies={unlinkedBabies.map(b => ({ id: b.id, name: b.name }))}
+            />
+          )}
+        </div>
+
+        {!canAddMore && (
           <p className="mt-3 text-center text-xs text-sage-400 italic">
             Maximum of 6 children reached.
           </p>
