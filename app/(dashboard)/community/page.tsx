@@ -65,6 +65,8 @@ export default async function CommunityPage() {
 
   const posts = (rawPosts ?? []).map(p => ({
     ...p,
+    // Supabase returns the joined profiles as an array; normalise to single object
+    profiles: Array.isArray(p.profiles) ? (p.profiles[0] ?? null) : p.profiles,
     liked_by_me: likedSet.has(p.id),
   }))
 

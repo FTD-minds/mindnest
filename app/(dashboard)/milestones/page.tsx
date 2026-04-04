@@ -118,7 +118,7 @@ export default async function MilestonesPage() {
         <div className="mb-6">
           <BabySwitcher
             babies={allBabies.map(b => ({ id: b.id, name: b.name }))}
-            activeBabyId={activeBaby.id}
+            selectedBabyId={activeBaby.id}
           />
         </div>
       )}
