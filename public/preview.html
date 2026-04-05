@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
+html{}
 body{width:100%;background:#f4f1e6;font-family:'DM Sans',sans-serif;overflow-x:hidden;}
 
 #hero{position:relative;width:100%;height:100vh;overflow:hidden;background:#f4f1e6;}
@@ -52,16 +52,16 @@ body{width:100%;background:#f4f1e6;font-family:'DM Sans',sans-serif;overflow-x:h
 
 /* SCROLL STORY */
 #story{width:100%;}
-.scene{width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 32px;position:relative;overflow:hidden;}
+.scene{width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:60px 32px;position:relative;overflow:hidden;}
 .scene-bg{position:absolute;inset:-40px;will-change:transform;}
-.scene-fg{position:relative;z-index:2;text-align:center;max-width:560px;will-change:filter,opacity,transform;filter:blur(16px);opacity:0;transform:translateY(28px);transition:filter 1s cubic-bezier(0.4,0,0.2,1),opacity 1s ease,transform 1s ease;}
-.scene-fg.revealed{filter:blur(0);opacity:1;transform:translateY(0);}
+.scene-fg{position:relative;z-index:2;text-align:center;max-width:560px;will-change:filter,opacity,transform;filter:blur(16px);opacity:0;transform:translateY(28px);transition:filter 1s cubic-bezier(0.4,0,0.2,1),opacity 1s ease,transform 1s ease;visibility:hidden;}
+.scene-fg.revealed{filter:blur(0);opacity:1;transform:translateY(0);visibility:visible;}
 .s-num{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:14px;}
 .s-title{font-family:'Cormorant Garamond',serif;font-size:clamp(32px,5vw,48px);font-weight:300;line-height:1.15;margin-bottom:14px;}
 .s-title em{font-style:italic;}
 .s-body{font-size:14px;line-height:1.8;max-width:400px;margin:0 auto;}
-.divider{width:1px;height:60px;background:linear-gradient(to bottom,transparent,rgba(60,100,50,0.2),transparent);margin:0 auto;}
-.divider-dark{width:1px;height:60px;background:linear-gradient(to bottom,rgba(60,100,50,0.15),rgba(140,200,110,0.2),#1c2e1c);margin:0 auto;}
+.divider{width:1px;height:0;margin:0 auto;}
+.divider-dark{width:1px;height:0;margin:0 auto;}
 
 .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:18px;}
 .pill{padding:7px 18px;border-radius:50px;font-size:12px;color:#2d522d;border:1px solid rgba(45,82,45,0.22);opacity:0;transform:translateY(10px);transition:opacity 0.5s ease,transform 0.5s ease;}
@@ -116,7 +116,6 @@ body{width:100%;background:#f4f1e6;font-family:'DM Sans',sans-serif;overflow-x:h
 </div>
 
 <div id="story">
-  <div class="divider"></div>
   <div class="scene" id="sc1" style="background:#f0ede3;">
     <div class="scene-bg" id="bg1" style="background:radial-gradient(circle at 25% 65%,rgba(60,100,50,0.12) 0%,transparent 55%);"></div>
     <div class="scene-fg" id="fg1">
@@ -125,7 +124,6 @@ body{width:100%;background:#f4f1e6;font-family:'DM Sans',sans-serif;overflow-x:h
       <div class="s-body" style="color:#4a6a3a;">Not just survive. MindNest is built for the moments between the milestones — the 3am questions, the quiet worries, the small wonders only you notice.</div>
     </div>
   </div>
-  <div class="divider"></div>
   <div class="scene" id="sc2" style="background:#eceae0;">
     <div class="scene-bg" id="bg2" style="background:radial-gradient(circle at 75% 35%,rgba(60,100,50,0.12) 0%,transparent 55%);"></div>
     <div class="scene-fg" id="fg2">
@@ -137,7 +135,6 @@ body{width:100%;background:#f4f1e6;font-family:'DM Sans',sans-serif;overflow-x:h
       </div>
     </div>
   </div>
-  <div class="divider"></div>
   <div class="scene" id="sc3" style="background:#e8e6dc;">
     <div class="scene-bg" id="bg3" style="background:radial-gradient(circle at 50% 70%,rgba(60,100,50,0.12) 0%,transparent 55%);"></div>
     <div class="scene-fg" id="fg3">
@@ -146,7 +143,6 @@ body{width:100%;background:#f4f1e6;font-family:'DM Sans',sans-serif;overflow-x:h
       <div class="s-body" style="color:#4a6a3a;">Sleep shifts. Growth spurts. First words. First steps. Nest tracks what matters most at each stage — so you are always one step ahead.</div>
     </div>
   </div>
-  <div class="divider-dark"></div>
   <div class="scene scene-dark" id="sc4">
     <div class="nest-orb">N</div>
     <div class="dark-text">
@@ -185,7 +181,7 @@ function spawnEl(parent,cls,style,life){const el=document.createElement('div');e
 document.getElementById('gsBtn').addEventListener('click',e=>{const r=hero.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;[0,1,2].forEach(i=>spawnEl(hero,'mn-portal-ring',`left:${x}px;top:${y}px;width:${45+i*18}px;height:${45+i*18}px;position:absolute;animation-delay:${i*0.11}s;animation-duration:${0.9+i*0.08}s;`,1300));[0,40,80,120,160,200,240,280,320].forEach((a,i)=>{const rad=a*Math.PI/180,dist=50+Math.random()*28,sz=3+Math.random()*4;spawnEl(hero,'mn-portal-dot',`left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;position:absolute;--tx:${Math.cos(rad)*dist}px;--ty:${Math.sin(rad)*dist}px;animation-delay:${i*0.025}s;`,900);});setTimeout(()=>{const tr=document.getElementById('mnTrans');tr.style.setProperty('--ox',((x/W)*100)+'%');tr.style.setProperty('--oy',((y/H)*100)+'%');tr.classList.add('show');setTimeout(()=>tr.classList.remove('show'),950);},320);});
 let siActive=false;
 document.getElementById('siBtn').addEventListener('click',e=>{if(siActive)return;siActive=true;const r=hero.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;[0,30,60,90,120,150,180,210,240,270,300,330].forEach((a,i)=>{const rad=a*Math.PI/180,dist=90+Math.random()*40,sz=2.5+Math.random()*3.5;spawnEl(hero,'mn-conv-dot',`left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;position:absolute;--fx:${Math.cos(rad)*dist}px;--fy:${Math.sin(rad)*dist}px;animation-delay:${i*0.018}s;animation-duration:${0.75+Math.random()*0.2}s;`,1100);});setTimeout(()=>{spawnEl(hero,'mn-conv-bloom',`left:${x}px;top:${y}px;width:100px;height:100px;position:absolute;`,1000);spawnEl(hero,'mn-conv-ring',`left:${x}px;top:${y}px;width:80px;height:80px;position:absolute;`,800);},500);setTimeout(()=>siActive=false,1200);});
-const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(!e.isIntersecting)return;const id=e.target.id;if(id==='sc1'||id==='sc2'||id==='sc3'){e.target.querySelector('.scene-fg').classList.add('revealed');}else if(id==='sc4'){e.target.classList.add('s4-revealed');}else if(id==='sc5'){e.target.querySelector('.s5-content').classList.add('revealed');}obs.unobserve(e.target);});},{threshold:0.28});
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(!e.isIntersecting)return;const id=e.target.id;if(id==='sc1'||id==='sc2'||id==='sc3'){e.target.querySelector('.scene-fg').classList.add('revealed');}else if(id==='sc4'){e.target.classList.add('s4-revealed');}else if(id==='sc5'){e.target.querySelector('.s5-content').classList.add('revealed');}obs.unobserve(e.target);});},{threshold:0.15});
 ['sc1','sc2','sc3','sc4','sc5'].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
 window.addEventListener('scroll',()=>{[{sc:'sc1',bg:'bg1'},{sc:'sc2',bg:'bg2'},{sc:'sc3',bg:'bg3'}].forEach(({sc,bg})=>{const el=document.getElementById(sc);const bgEl=document.getElementById(bg);if(!el||!bgEl)return;const r=el.getBoundingClientRect();const offset=(r.top+r.height/2-window.innerHeight/2)*0.12;bgEl.style.transform=`translateY(${offset}px)`;});},{passive:true});
 [{sc:'sc1',bg:'bg1',fg:'fg1'},{sc:'sc2',bg:'bg2',fg:'fg2'},{sc:'sc3',bg:'bg3',fg:'fg3'}].forEach(({sc,bg,fg})=>{const el=document.getElementById(sc);const bgEl=document.getElementById(bg);const fgEl=document.getElementById(fg);if(!el||!bgEl||!fgEl)return;el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();const cx=(e.clientX-r.left)/r.width-0.5,cy=(e.clientY-r.top)/r.height-0.5;bgEl.style.transform=`translate(${cx*24}px,${cy*14}px)`;fgEl.style.transform=`translateY(0) translate(${cx*-8}px,${cy*-5}px)`;});el.addEventListener('mouseleave',()=>{bgEl.style.transform='translateY(0)';fgEl.style.transform='translateY(0)';});});
