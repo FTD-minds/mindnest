@@ -34,3 +34,88 @@ body::after {
 ::-webkit-scrollbar       { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cdd2cb; border-radius: 99px; }
+
+/* MindNest Animation System */
+@keyframes mnBreatheGs {
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(90,140,80,0.22), 0 0 16px rgba(60,110,50,0.07), 0 4px 14px rgba(10,30,10,0.2); }
+  50% { box-shadow: 0 0 0 2px rgba(100,155,80,0.36), 0 0 24px rgba(70,125,55,0.14), 0 4px 18px rgba(10,30,10,0.26); }
+}
+@keyframes mnBreatheSi {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(90,140,80,0); }
+  50% { box-shadow: 0 0 0 3px rgba(90,140,80,0.09); }
+}
+.mn-portal-ring {
+  position: absolute; border-radius: 50%;
+  border: 1.5px solid rgba(110,175,90,0.65);
+  pointer-events: none; z-index: 30;
+  transform: translate(-50%, -50%) scale(0);
+  animation: mnPortalExpand 0.95s cubic-bezier(0.15, 0.8, 0.35, 1) forwards;
+}
+@keyframes mnPortalExpand {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(5.5); opacity: 0; }
+}
+.mn-portal-dot {
+  position: absolute; border-radius: 50%;
+  background: rgba(130,200,110,0.8);
+  pointer-events: none; z-index: 30;
+  animation: mnPortalDot 0.78s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+@keyframes mnPortalDot {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+  100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0); opacity: 0; }
+}
+.mn-conv-dot {
+  position: absolute; border-radius: 50%;
+  background: rgba(155,210,135,0.85);
+  pointer-events: none; z-index: 30;
+  animation: mnConvDot 0.85s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes mnConvDot {
+  0% { transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(0.5); opacity: 0.9; }
+  70% { opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+.mn-conv-bloom {
+  position: absolute; border-radius: 50%;
+  pointer-events: none; z-index: 30;
+  animation: mnConvBloom 0.9s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+}
+@keyframes mnConvBloom {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.7; background: radial-gradient(circle, rgba(120,190,100,0.5) 0%, rgba(120,190,100,0) 70%); }
+  50% { opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; background: radial-gradient(circle, rgba(120,190,100,0.3) 0%, rgba(120,190,100,0) 70%); }
+}
+.mn-conv-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(110,175,90,0.5);
+  pointer-events: none; z-index: 30;
+  animation: mnConvRing 0.7s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+}
+@keyframes mnConvRing {
+  0% { transform: translate(-50%, -50%) scale(1.8); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+}
+.mn-transition {
+  position: absolute; inset: 0;
+  background: #152015;
+  transform: scale(0);
+  transform-origin: var(--ox, 50%) var(--oy, 50%);
+  opacity: 0; z-index: 40; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.mn-transition-show {
+  animation: mnTransIn 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes mnTransIn {
+  0% { transform: scale(0); opacity: 0.9; }
+  60% { opacity: 0.85; }
+  100% { transform: scale(3); opacity: 0; }
+}
+.mn-transition-show span {
+  animation: mnTransText 0.6s ease 0.15s forwards;
+}
+@keyframes mnTransText {
+  0% { color: rgba(240,237,224,0); }
+  100% { color: rgba(240,237,224,0.88); }
+}
