@@ -28,7 +28,7 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
 #si-btn:active{transform:scale(0.97);}
 
 .scroll-peek{position:absolute;bottom:0;left:0;right:0;height:52px;display:flex;justify-content:center;align-items:flex-end;z-index:10;pointer-events:none;opacity:0;animation:fadeUp 0.9s 1.5s forwards;}
-.peek-nub{width:72px;height:5px;background:rgba(60,100,50,0.2);border-radius:3px 3px 0 0;animation:nubBounce 2.2s ease-in-out infinite;}
+.peek-nub{width:88px;height:7px;background:rgba(30,65,25,0.55);border-radius:3px 3px 0 0;animation:nubBounce 2.2s ease-in-out infinite;box-shadow:0 2px 10px rgba(30,65,25,0.25);}
 @keyframes nubBounce{0%,100%{transform:translateY(0);opacity:0.6;}50%{transform:translateY(-12px);opacity:1;}}
 
 .mn-portal-ring{position:absolute;border-radius:50%;border:1.5px solid rgba(40,80,35,0.6);pointer-events:none;z-index:30;animation:portalExpand 0.95s cubic-bezier(0.15,0.8,0.35,1) forwards;}
@@ -115,8 +115,8 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
   <div class="mn-transition" id="mnTrans"><span>Welcome to MindNest</span></div>
 </div>
 
-<div class="scene" id="sc1" style="background:#f0ede3;">
-  <div class="scene-bg" id="bg1" style="background:radial-gradient(circle at 25% 65%,rgba(60,100,50,0.13) 0%,transparent 55%);"></div>
+<div class="scene" id="sc1" style="background:#d8d5cb;">
+  <div class="scene-bg" id="bg1" style="background:radial-gradient(circle at 25% 65%,rgba(60,100,50,0.25) 0%,transparent 55%);"></div>
   <div class="scene-fg" id="fg1">
     <div class="s-num" style="color:#7a9a68;">01 — Begin</div>
     <div class="s-title" style="color:#152015;">Every parent deserves to feel <em style="color:#2d522d;">confident.</em></div>
@@ -124,8 +124,8 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
   </div>
 </div>
 
-<div class="scene" id="sc2" style="background:#eae8de;">
-  <div class="scene-bg" id="bg2" style="background:radial-gradient(circle at 75% 35%,rgba(60,100,50,0.13) 0%,transparent 55%);"></div>
+<div class="scene" id="sc2" style="background:#ccc9bc;">
+  <div class="scene-bg" id="bg2" style="background:radial-gradient(circle at 75% 35%,rgba(60,100,50,0.25) 0%,transparent 55%);"></div>
   <div class="scene-fg" id="fg2">
     <div class="s-num" style="color:#7a9a68;">02 — Personalize</div>
     <div class="s-title" style="color:#152015;">Built around <em style="color:#2d522d;">your</em> baby's journey.</div>
@@ -136,8 +136,8 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
   </div>
 </div>
 
-<div class="scene" id="sc3" style="background:#e4e2d8;">
-  <div class="scene-bg" id="bg3" style="background:radial-gradient(circle at 50% 70%,rgba(60,100,50,0.13) 0%,transparent 55%);"></div>
+<div class="scene" id="sc3" style="background:#c8c5b8;">
+  <div class="scene-bg" id="bg3" style="background:radial-gradient(circle at 50% 70%,rgba(60,100,50,0.25) 0%,transparent 55%);"></div>
   <div class="scene-fg" id="fg3">
     <div class="s-num" style="color:#7a9a68;">03 — Milestones</div>
     <div class="s-title" style="color:#152015;">Every month, <em style="color:#2d522d;">something new</em> emerges.</div>
@@ -207,7 +207,7 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
 
     <div class="s-num" style="color:#7ab868;">04 — Meet Nest</div>
     <div class="s-title" style="color:#e8e4d4;margin-bottom:10px;">Meet the mind <em style="color:#9dd884;">behind every answer.</em></div>
-    <div class="s-body" style="color:#8aaa78;margin-bottom:6px;">Nest is MindNest's AI core — trained on developmental milestones, clinical sleep research, and pediatric science. It doesn't just respond. It adapts to your child's exact age and meets you with clarity, every single time.</div>
+    <div class="s-body" style="color:#8aaa78;margin-bottom:6px;">MindNest's AI core — a pediatric intelligence engine trained on developmental science, sleep research, and real parenting data. It doesn't just respond. It reasons, adapts, and grows with your child.</div>
 
     <div class="feat-grid">
       <div class="feat">
@@ -340,9 +340,10 @@ window.addEventListener('scroll',()=>{
     const el=document.getElementById(sc);const bgEl=document.getElementById(bg);
     if(!el||!bgEl)return;
     const rect=el.getBoundingClientRect();
-    const offset=(rect.top+rect.height/2-window.innerHeight/2)*0.14;
+    const offset=(rect.top+rect.height/2-window.innerHeight/2)*0.25;
     bgEl.style.transform=`translateY(${offset}px)`;
   });
+  if(window.scrollY>80&&navigator.vibrate){navigator.vibrate(6);}
 },{passive:true});
 
 [{sc:'sc1',bg:'bg1',fg:'fg1'},{sc:'sc2',bg:'bg2',fg:'fg2'},{sc:'sc3',bg:'bg3',fg:'fg3'}].forEach(({sc,bg,fg})=>{
