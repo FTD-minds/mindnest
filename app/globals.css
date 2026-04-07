@@ -7,11 +7,17 @@
   --foreground: #1a2e1d;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
+  font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* Grain texture — adds warmth and depth to the flat background */
@@ -163,7 +169,7 @@ body::after {
 
 .h-desc {
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   color: #1e3a18;
   margin-top: 10px;
 }
@@ -298,7 +304,7 @@ body::after {
 
 .s-body {
   font-size: 15px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.85;
   max-width: 440px;
   margin: 0 auto;
@@ -355,7 +361,8 @@ body::after {
   transition: transform 0.7s cubic-bezier(0.34,1.2,0.64,1), filter 0.7s ease;
   filter: drop-shadow(0 8px 24px rgba(60,160,60,0.18));
 }
-.orb-wrap:hover {
+.orb-wrap:hover,
+.orb-wrap.orb-touched {
   transform: translateY(-16px);
   filter: drop-shadow(0 0 50px rgba(80,200,80,0.5)) drop-shadow(0 24px 48px rgba(40,120,40,0.4));
 }
@@ -387,7 +394,8 @@ body::after {
   0%, 100% { opacity: 0.55; }
   50%       { opacity: 1; }
 }
-.orb-wrap:hover .geo-lines { opacity: 1; filter: blur(0); }
+.orb-wrap:hover .geo-lines,
+.orb-wrap.orb-touched .geo-lines { opacity: 1; filter: blur(0); }
 
 /* Feature cards */
 .feat-grid {

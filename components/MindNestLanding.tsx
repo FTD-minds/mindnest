@@ -221,8 +221,13 @@ function siBurst(e: React.MouseEvent, container: HTMLElement) {
 
 /* ── Seed of Life SVG Orb ── */
 function SeedOfLifeOrb() {
+  const [touched, setTouched] = useState(false)
+  const handleTouch = () => {
+    setTouched(true)
+    setTimeout(() => setTouched(false), 1500)
+  }
   return (
-    <div className="orb-wrap" id="orbWrap">
+    <div className={`orb-wrap${touched ? ' orb-touched' : ''}`} id="orbWrap" onTouchStart={handleTouch}>
       <svg className="orb-svg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <radialGradient id="sG" cx="38%" cy="32%" r="65%">
