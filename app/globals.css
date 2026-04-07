@@ -7,17 +7,23 @@
   --foreground: #1a2e1d;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html {
+  width: 100%;
   overflow-x: hidden;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'DM Sans', sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  width: 100%;
 }
 
 /* Grain texture — adds warmth and depth to the flat background */

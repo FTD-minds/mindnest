@@ -356,24 +356,28 @@ export default function MindNestLanding() {
 
         <div id="hero-content">
           <motion.div className="h-tag"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}>
             AI Parenting Companion · 0–36 Months
           </motion.div>
 
           <motion.div className="h-title"
+            style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 400 }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.9, ease: 'easeOut' }}>
             MindNest
           </motion.div>
 
           <motion.div className="h-tagline"
+            style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600 }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.9, ease: 'easeOut' }}>
             Every month. Every milestone. Nest has you covered.
           </motion.div>
 
           <motion.div className="h-desc"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8, duration: 0.9, ease: 'easeOut' }}>
             Instant answers for every question, worry, and wonder.
@@ -413,7 +417,7 @@ export default function MindNestLanding() {
           <div className="s-title" style={{ color: '#0a150a' }}>
             Every parent deserves to feel <em style={{ color: '#2d522d' }}>confident.</em>
           </div>
-          <div className="s-body" style={{ color: '#1a3018' }}>
+          <div className="s-body" style={{ color: '#1a3018', fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
             Not just survive. MindNest is built for the moments between the milestones — the 3am questions, the quiet worries, the small wonders only you notice.
           </div>
         </div>
@@ -428,7 +432,7 @@ export default function MindNestLanding() {
           <div className="s-title" style={{ color: '#0a150a' }}>
             Built around <em style={{ color: '#2d522d' }}>your</em> baby's journey.
           </div>
-          <div className="s-body" style={{ color: '#1a3018' }}>
+          <div className="s-body" style={{ color: '#1a3018', fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
             MindNest learns your child's age, stage, and needs — so every answer feels like it was written just for you.
           </div>
           <div className="pills">
@@ -450,7 +454,7 @@ export default function MindNestLanding() {
           <div className="s-title" style={{ color: '#0a150a' }}>
             Every month, <em style={{ color: '#2d522d' }}>something new</em> emerges.
           </div>
-          <div className="s-body" style={{ color: '#1a3018' }}>
+          <div className="s-body" style={{ color: '#1a3018', fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
             Sleep shifts. Growth spurts. First words. First steps. Nest tracks what matters most — so you are always one step ahead, never left guessing.
           </div>
         </div>
