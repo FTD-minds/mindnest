@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 interface Particle {
   baseX: number; baseY: number; x: number; y: number; r: number
@@ -11,9 +11,9 @@ interface Particle {
 }
 
 const PALETTE = [
-  { r: 10, g: 35, b: 12 }, { r: 16, g: 50, b: 20 }, { r: 22, g: 65, b: 28 },
-  { r: 30, g: 78, b: 35 }, { r: 12, g: 42, b: 18 }, { r: 38, g: 88, b: 42 },
-  { r: 6,  g: 28, b: 10 }, { r: 48, g: 98, b: 48 }, { r: 18, g: 58, b: 25 },
+  { r: 8,  g: 45,  b: 15 }, { r: 14, g: 62,  b: 25 }, { r: 20, g: 78,  b: 35 },
+  { r: 28, g: 90,  b: 42 }, { r: 10, g: 52,  b: 22 }, { r: 35, g: 100, b: 48 },
+  { r: 5,  g: 32,  b: 12 }, { r: 45, g: 110, b: 55 }, { r: 16, g: 68,  b: 30 },
 ]
 
 function HeroCanvas({ containerRef }: { containerRef: React.RefObject<HTMLDivElement> }) {
@@ -32,7 +32,7 @@ function HeroCanvas({ containerRef }: { containerRef: React.RefObject<HTMLDivEle
       baseX, baseY, x: baseX, y: baseY,
       r: Math.random() * 58 + 18,
       color: c,
-      alpha: Math.random() * 0.28 + 0.10,
+      alpha: Math.random() * 0.38 + 0.18,
       phase: Math.random() * Math.PI * 2,
       floatAmp: Math.random() * 22 + 9,
       floatFreq: Math.random() * 0.011 + 0.004,
@@ -96,18 +96,19 @@ function HeroCanvas({ containerRef }: { containerRef: React.RefObject<HTMLDivEle
       if (!btn) return
       const cr = container.getBoundingClientRect()
       const br = btn.getBoundingClientRect()
+      if (br.top > window.innerHeight || br.bottom < 0) return
       const cx = br.left - cr.left + br.width / 2
       const cy = br.top  - cr.top  + br.height / 2
-      const rx = br.width  / 2 + (s.gsHover ? 16 : 9)
-      const ry = br.height / 2 + (s.gsHover ? 7 : 3)
+      const rx = br.width  / 2 + (s.gsHover ? 18 : 10)
+      const ry = br.height / 2 + (s.gsHover ? 8  : 4)
       for (let i = 0; i < 6; i++) {
         const a = s.orbitPhase + (i / 6) * Math.PI * 2
         ctx.beginPath()
-        ctx.arc(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, s.gsHover ? 3.2 : 2.2, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(155,215,135,${s.gsHover ? 0.55 : 0.28})`
+        ctx.arc(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, s.gsHover ? 3.8 : 2.8, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(40,90,35,${s.gsHover ? 0.7 : 0.45})`
         ctx.fill()
       }
-      s.orbitPhase += s.gsHover ? 0.038 : 0.016
+      s.orbitPhase += s.gsHover ? 0.04 : 0.018
     }
 
     const loop = () => {
@@ -148,9 +149,15 @@ function HeroCanvas({ containerRef }: { containerRef: React.RefObject<HTMLDivEle
     }
   }, [containerRef, makeParticle])
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }} />
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+    />
+  )
 }
 
+/* ── Spawn helper ── */
 function spawnEl(parent: HTMLElement, cls: string, style: string, lifetime: number) {
   const el = document.createElement('div')
   el.className = cls; el.style.cssText = style
@@ -158,191 +165,340 @@ function spawnEl(parent: HTMLElement, cls: string, style: string, lifetime: numb
   setTimeout(() => el.remove(), lifetime)
 }
 
-function portalBurst(e: React.MouseEvent, container: HTMLElement) {
+/* ── Portal burst (Get Started + Scene 5 CTA) ── */
+function portalBurst(
+  e: React.MouseEvent,
+  container: HTMLElement,
+  opts: { ringColor?: string; dotBg?: string; showTransition?: boolean } = {}
+) {
   const r = container.getBoundingClientRect()
   const x = e.clientX - r.left, y = e.clientY - r.top
   const W = container.offsetWidth, H = container.offsetHeight
-  ;[0, 1, 2].forEach(i => spawnEl(container, 'mn-portal-ring',
-    `left:${x}px;top:${y}px;width:${45+i*18}px;height:${45+i*18}px;animation-delay:${i*0.11}s;animation-duration:${0.9+i*0.08}s;`,
-    1300))
+  const ringColor = opts.ringColor ?? 'rgba(40,80,35,0.6)'
+  const dotBg     = opts.dotBg     ?? 'rgba(40,90,35,0.75)'
+
+  ;[0, 1, 2].forEach(i =>
+    spawnEl(container, 'mn-portal-ring',
+      `left:${x}px;top:${y}px;width:${45+i*18}px;height:${45+i*18}px;` +
+      `border-color:${ringColor};` +
+      `animation-delay:${i*0.11}s;animation-duration:${0.9+i*0.08}s;`,
+      1300))
+
   ;[0,40,80,120,160,200,240,280,320].forEach((a, i) => {
     const rad = a * Math.PI / 180, dist = 50 + Math.random() * 28, sz = 3 + Math.random() * 4
     spawnEl(container, 'mn-portal-dot',
-      `left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;--tx:${Math.cos(rad)*dist}px;--ty:${Math.sin(rad)*dist}px;animation-delay:${i*0.025}s;`,
+      `left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;background:${dotBg};` +
+      `--tx:${Math.cos(rad)*dist}px;--ty:${Math.sin(rad)*dist}px;animation-delay:${i*0.025}s;`,
       900)
   })
-  setTimeout(() => {
-    const overlay = container.querySelector<HTMLElement>('.mn-transition')
-    if (!overlay) return
-    overlay.style.setProperty('--ox', ((x / W) * 100) + '%')
-    overlay.style.setProperty('--oy', ((y / H) * 100) + '%')
-    overlay.classList.add('mn-transition-show')
-    setTimeout(() => overlay.classList.remove('mn-transition-show'), 950)
-  }, 320)
+
+  if (opts.showTransition) {
+    setTimeout(() => {
+      const overlay = container.querySelector<HTMLElement>('.mn-transition')
+      if (!overlay) return
+      overlay.style.setProperty('--ox', ((x / W) * 100) + '%')
+      overlay.style.setProperty('--oy', ((y / H) * 100) + '%')
+      overlay.classList.add('mn-transition-show')
+      setTimeout(() => overlay.classList.remove('mn-transition-show'), 950)
+    }, 320)
+  }
 }
 
-function convergenceBurst(e: React.MouseEvent, container: HTMLElement) {
+/* ── SI burst (Sign In) ── */
+function siBurst(e: React.MouseEvent, container: HTMLElement) {
   const r = container.getBoundingClientRect()
   const x = e.clientX - r.left, y = e.clientY - r.top
-  ;[0,30,60,90,120,150,180,210,240,270,300,330].forEach((a, i) => {
-    const rad = a * Math.PI / 180, dist = 90 + Math.random() * 40, sz = 2.5 + Math.random() * 3.5
-    spawnEl(container, 'mn-conv-dot',
-      `left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;--fx:${Math.cos(rad)*dist}px;--fy:${Math.sin(rad)*dist}px;animation-delay:${i*0.018}s;animation-duration:${0.75+Math.random()*0.2}s;`,
-      1100)
-  })
-  setTimeout(() => {
-    spawnEl(container, 'mn-conv-bloom', `left:${x}px;top:${y}px;width:100px;height:100px;`, 1000)
-    spawnEl(container, 'mn-conv-ring',  `left:${x}px;top:${y}px;width:80px;height:80px;`, 800)
-  }, 500)
+  spawnEl(container, 'mn-si-ring', `left:${x}px;top:${y}px;width:60px;height:60px;`, 900)
+  spawnEl(container, 'mn-si-ring', `left:${x}px;top:${y}px;width:60px;height:60px;animation-delay:0.15s;`, 1100)
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2, dist = 28 + Math.random() * 18, sz = 2.5 + Math.random() * 2.5
+    spawnEl(container, 'mn-si-dot',
+      `left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;` +
+      `--tx:${Math.cos(a)*dist}px;--ty:${Math.sin(a)*dist}px;animation-delay:${i*0.04}s;`,
+      950)
+  }
 }
 
-function ScrollScene({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0])
-  const y       = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [40, 0, 0, -20])
+/* ── Seed of Life SVG Orb ── */
+function SeedOfLifeOrb() {
   return (
-    <div ref={ref} className={`w-full flex items-center justify-center py-20 px-10 ${dark ? 'bg-[#1c2e1c]' : 'bg-[#f4f1e6]'}`}>
-      <motion.div style={{ opacity, y }} className="max-w-xl text-center">{children}</motion.div>
+    <div className="orb-wrap" id="orbWrap">
+      <svg className="orb-svg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="sG" cx="38%" cy="32%" r="65%">
+            <stop offset="0%"   stopColor="#4a8a5a" />
+            <stop offset="30%"  stopColor="#2a5a35" />
+            <stop offset="65%"  stopColor="#1a3a22" />
+            <stop offset="85%"  stopColor="#0f2416" />
+            <stop offset="100%" stopColor="#081408" />
+          </radialGradient>
+          <radialGradient id="rG" cx="50%" cy="50%" r="50%">
+            <stop offset="75%"  stopColor="transparent" />
+            <stop offset="88%"  stopColor="#3a8a4a" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#5ab86a" stopOpacity="0.25" />
+          </radialGradient>
+          <radialGradient id="hG" cx="35%" cy="28%" r="40%">
+            <stop offset="0%"   stopColor="#a0f0b0" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+          <radialGradient id="bG" cx="65%" cy="80%" r="35%">
+            <stop offset="0%"   stopColor="#3a6a45" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+          <radialGradient id="spG" cx="30%" cy="24%" r="18%">
+            <stop offset="0%"   stopColor="#e0ffe8" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+          <clipPath id="sC"><circle cx="110" cy="110" r="98" /></clipPath>
+          <filter id="gG" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.5" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <circle cx="110" cy="110" r="108" fill="none" stroke="#2a6a35" strokeWidth="0.5" opacity="0.3" />
+        <circle cx="110" cy="110" r="102" fill="none" stroke="#3a8a45" strokeWidth="0.3" opacity="0.2" />
+        <circle cx="110" cy="110" r="98"  fill="url(#sG)" />
+        <circle cx="110" cy="110" r="98"  fill="url(#bG)" />
+        <g clipPath="url(#sC)">
+          <g className="geo-group">
+            <g className="geo-lines" filter="url(#gG)" stroke="#7ae890" strokeWidth="0.8" fill="none" opacity="0.7">
+              <circle cx="110" cy="110" r="60" stroke="#5ad870" strokeWidth="0.6" opacity="0.5" />
+              <circle cx="110" cy="110" r="75" stroke="#4ac860" strokeWidth="0.4" opacity="0.3" />
+              <circle cx="110" cy="110" r="30" />
+              <circle cx="110" cy="80"  r="30" />
+              <circle cx="136" cy="95"  r="30" />
+              <circle cx="136" cy="125" r="30" />
+              <circle cx="110" cy="140" r="30" />
+              <circle cx="84"  cy="125" r="30" />
+              <circle cx="84"  cy="95"  r="30" />
+            </g>
+          </g>
+        </g>
+        <circle cx="110" cy="110" r="98" fill="url(#rG)" className="rim-light" />
+        <circle cx="110" cy="110" r="98" fill="url(#hG)" />
+        <ellipse cx="84" cy="68" rx="18" ry="11" fill="url(#spG)" className="specular" transform="rotate(-20,84,68)" />
+      </svg>
     </div>
   )
 }
 
+/* ── Main component ── */
 export default function MindNestLanding() {
   const heroRef = useRef<HTMLDivElement>(null)
+  const sc5Ref  = useRef<HTMLDivElement>(null)
   const [siActive, setSiActive] = useState(false)
+  const [s5Active, setS5Active] = useState(false)
+
+  /* IntersectionObserver for scroll scenes + haptic */
+  useEffect(() => {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return
+        const id = e.target.id
+        if      (id === 'sc1') document.getElementById('fg1')?.classList.add('on')
+        else if (id === 'sc2') document.getElementById('fg2')?.classList.add('on')
+        else if (id === 'sc3') document.getElementById('fg3')?.classList.add('on')
+        else if (id === 'sc4') e.target.classList.add('s4-on')
+        else if (id === 'sc5') e.target.classList.add('s5-on')
+        obs.unobserve(e.target)
+      })
+    }, { threshold: 0.25, rootMargin: '0px 0px -80px 0px' })
+
+    ;['sc1','sc2','sc3','sc4','sc5'].forEach(id => {
+      const el = document.getElementById(id)
+      if (el) obs.observe(el)
+    })
+
+    const onScroll = () => {
+      if (window.scrollY > 80 && (navigator as any).vibrate) (navigator as any).vibrate(6)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => {
+      obs.disconnect()
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
 
   const handleGsClick = (e: React.MouseEvent) => {
     if (!heroRef.current) return
-    portalBurst(e, heroRef.current)
+    portalBurst(e, heroRef.current, { showTransition: true })
   }
 
   const handleSiClick = (e: React.MouseEvent) => {
     if (siActive || !heroRef.current) return
     setSiActive(true)
-    convergenceBurst(e, heroRef.current)
-    setTimeout(() => setSiActive(false), 1200)
+    siBurst(e, heroRef.current)
+    setTimeout(() => setSiActive(false), 1000)
+  }
+
+  const handleS5Click = (e: React.MouseEvent) => {
+    if (s5Active || !sc5Ref.current) return
+    setS5Active(true)
+    portalBurst(e, sc5Ref.current, {
+      ringColor: 'rgba(240,237,224,0.5)',
+      dotBg: 'rgba(240,237,224,0.7)',
+    })
+    setTimeout(() => setS5Active(false), 1000)
   }
 
   return (
-    <div className="w-full">
-      <div ref={heroRef} className="relative w-full overflow-hidden" style={{ minHeight: '100vh', background: '#f4f1e6' }}>
+    <div style={{ width: '100%' }}>
+
+      {/* ── Hero ── */}
+      <div ref={heroRef} id="hero">
         <HeroCanvas containerRef={heroRef as React.RefObject<HTMLDivElement>} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center z-10 pointer-events-none">
-          <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}
-            className="text-[10px] tracking-[0.18em] uppercase text-[#4a6a38] mb-5">
+
+        <div id="hero-content">
+          <motion.div className="h-tag"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}>
             AI Parenting Companion · 0–36 Months
-          </motion.p>
-          <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.9, ease: 'easeOut' }}
-            className="font-serif text-[clamp(48px,8vw,72px)] font-light text-[#152015] leading-none tracking-tight"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+          </motion.div>
+
+          <motion.div className="h-title"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.9, ease: 'easeOut' }}>
             MindNest
-          </motion.h1>
-          <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.9, ease: 'easeOut' }}
-            className="mt-3 text-[17px] italic font-light text-[#2d522d]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+          </motion.div>
+
+          <motion.div className="h-tagline"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.9, ease: 'easeOut' }}>
             Every month. Every milestone. Nest has you covered.
-          </motion.p>
-          <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.9, ease: 'easeOut' }}
-            className="mt-2 text-[13px] font-light text-[#3a5230] tracking-wide">
+          </motion.div>
+
+          <motion.div className="h-desc"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.9, ease: 'easeOut' }}>
             Instant answers for every question, worry, and wonder.
-          </motion.p>
-          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0, duration: 0.9, ease: 'easeOut' }}
-            className="flex gap-4 mt-8 pointer-events-auto">
-            <button id="gs-btn" onClick={handleGsClick}
+          </motion.div>
+
+          <motion.div className="h-btns"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.0, duration: 0.9, ease: 'easeOut' }}>
+            <button
+              id="gs-btn"
+              onClick={handleGsClick}
               onMouseEnter={() => (window as any).__setGsHover?.(true)}
-              onMouseLeave={() => (window as any).__setGsHover?.(false)}
-              className="px-8 py-3 rounded-full border-[1.5px] border-[#1c2e1c]/40 bg-transparent text-[#1c2e1c] text-sm tracking-widest transition-all duration-300 hover:scale-[1.04] hover:border-[#1c2e1c]/60 active:scale-[0.97]"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              onMouseLeave={() => (window as any).__setGsHover?.(false)}>
               Get Started
             </button>
-            <button id="si-btn" onClick={handleSiClick}
-              className="px-8 py-3 rounded-full bg-[#1c2e1c] text-[#f0ede0] text-sm tracking-widest transition-all duration-300 hover:scale-[1.04] hover:bg-[#2d4a2d] active:scale-[0.97]"
-              style={{ fontFamily: "'DM Sans', sans-serif", boxShadow: '0 0 0 1.5px rgba(90,140,80,0.28), 0 4px 16px rgba(10,30,10,0.22)' }}>
+            <button id="si-btn" onClick={handleSiClick}>
               Sign In
             </button>
           </motion.div>
         </div>
-        <div className="mn-transition absolute inset-0 flex items-center justify-center z-40 pointer-events-none"
-          style={{ background: '#152015', transform: 'scale(0)', opacity: 0 }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 20, color: 'rgba(240,237,224,0)', letterSpacing: '0.06em' }}>
+
+        <div className="scroll-peek"><div className="peek-nub" /></div>
+
+        <div className="mn-transition" id="mnTrans">
+          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 22, letterSpacing: '0.06em' }}>
             Welcome to MindNest
           </span>
         </div>
       </div>
 
-      <div className="w-full">
-        <div className="w-px h-16 bg-gradient-to-b from-transparent via-[#3d6b3d]/20 to-transparent mx-auto" />
-        <ScrollScene>
-          <p className="text-[10px] tracking-[0.2em] uppercase text-[#7a9a68] mb-4">01 — Begin</p>
-          <h2 className="text-[42px] font-light text-[#152015] leading-[1.15] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-            Every parent deserves to feel <em className="italic text-[#2d522d]">confident.</em>
-          </h2>
-          <p className="text-[13px] text-[#4a6a3a] leading-[1.8] max-w-sm mx-auto">
-            Not just survive. MindNest is built for the moments between the milestones — the 3am questions, the quiet worries, the small wonders only you notice.
-          </p>
-        </ScrollScene>
-        <div className="w-px h-16 bg-gradient-to-b from-transparent via-[#3d6b3d]/20 to-transparent mx-auto" />
-        <ScrollScene>
-          <p className="text-[10px] tracking-[0.2em] uppercase text-[#7a9a68] mb-4">02 — Personalize</p>
-          <h2 className="text-[42px] font-light text-[#152015] leading-[1.15] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-            Built around <em className="italic text-[#2d522d]">your</em> baby's journey.
-          </h2>
-          <p className="text-[13px] text-[#4a6a3a] leading-[1.8] max-w-sm mx-auto mb-6">
-            From the first breath to the first step. MindNest learns your child's age, stage, and needs — so every answer feels like it was written just for you.
-          </p>
-          <div className="flex gap-2 flex-wrap justify-center">
-            {['Newborn', '3 Months', '6 Months', '12 Months', '36 Months'].map((label, i) => (
-              <motion.span key={label} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ delay: i * 0.12, duration: 0.5, ease: 'easeOut' }}
-                className="px-4 py-2 rounded-full text-[12px] text-[#2d522d] border border-[#2d522d]/20 tracking-wide">
-                {label}
-              </motion.span>
-            ))}
+      {/* ── Scene 1 — Begin ── */}
+      <div className="scene" id="sc1" style={{ background: '#b8c9a8' }}>
+        <div className="scene-bg" id="bg1" style={{ background: 'radial-gradient(circle at 25% 65%,rgba(60,100,50,0.25) 0%,transparent 55%)' }} />
+        <div className="scene-overlay" />
+        <div className="scene-fg" id="fg1">
+          <div className="s-num" style={{ color: '#2d5220' }}>01 — Begin</div>
+          <div className="s-title" style={{ color: '#0a150a' }}>
+            Every parent deserves to feel <em style={{ color: '#2d522d' }}>confident.</em>
           </div>
-        </ScrollScene>
-        <div className="w-px h-16 bg-gradient-to-b from-transparent via-[#3d6b3d]/20 to-transparent mx-auto" />
-        <ScrollScene>
-          <p className="text-[10px] tracking-[0.2em] uppercase text-[#7a9a68] mb-4">03 — Milestones</p>
-          <h2 className="text-[42px] font-light text-[#152015] leading-[1.15] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-            Every month, <em className="italic text-[#2d522d]">something new</em> emerges.
-          </h2>
-          <p className="text-[13px] text-[#4a6a3a] leading-[1.8] max-w-sm mx-auto">
-            Sleep shifts. Growth spurts. First words. First steps. Nest tracks what matters most at each stage — so you are always one step ahead, never left guessing.
-          </p>
-        </ScrollScene>
-        <div className="w-px h-16 bg-gradient-to-b from-transparent via-[#3d6b3d]/40 to-[#1c2e1c] mx-auto" />
-        <ScrollScene dark>
-          <motion.div initial={{ opacity: 0, scale: 0.7 }} whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }} transition={{ duration: 0.9, ease: [0.34, 1.4, 0.64, 1] }}
-            className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center text-[28px] font-light"
-            style={{ background: 'radial-gradient(circle at 35% 35%, #4a8a3a, #1c4018)', boxShadow: '0 0 0 1px rgba(140,200,110,0.3), 0 0 40px rgba(80,160,60,0.2)', fontFamily: "'Cormorant Garamond', serif", color: 'rgba(220,240,210,0.9)' }}>
-            N
-          </motion.div>
-          <p className="text-[10px] tracking-[0.2em] uppercase text-[#7ab868] mb-4">04 — Meet Nest</p>
-          <h2 className="text-[42px] font-light text-[#e8e4d4] leading-[1.15] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-            Your AI companion, <em className="italic text-[#9dd884]">always present.</em>
-          </h2>
-          <p className="text-[13px] text-[#8aaa78] leading-[1.8] max-w-sm mx-auto">
-            Nest does not just answer questions. It understands where you are in the journey and meets you there, every time, with calm and clarity.
-          </p>
-        </ScrollScene>
-        <ScrollScene dark>
-          <p className="text-[10px] tracking-[0.2em] uppercase text-[#7ab868] mb-4">05 — Begin</p>
-          <h2 className="text-[42px] font-light text-[#e8e4d4] leading-[1.15] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-            Your journey <em className="italic text-[#9dd884]">starts now.</em>
-          </h2>
-          <p className="text-[13px] text-[#8aaa78] leading-[1.8] max-w-sm mx-auto mb-8">
-            Join thousands of parents navigating the 0 to 36 month adventure with confidence, clarity, and calm.
-          </p>
-          <motion.button initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }} transition={{ delay: 0.4, duration: 0.8, ease: 'easeOut' }}
-            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-            className="px-10 py-4 rounded-full bg-[#f0ede0] text-[#152015] text-sm tracking-widest"
-            style={{ fontFamily: "'DM Sans', sans-serif", boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
-            Get Started with MindNest
-          </motion.button>
-        </ScrollScene>
+          <div className="s-body" style={{ color: '#1a3018' }}>
+            Not just survive. MindNest is built for the moments between the milestones — the 3am questions, the quiet worries, the small wonders only you notice.
+          </div>
+        </div>
       </div>
+
+      {/* ── Scene 2 — Personalize ── */}
+      <div className="scene" id="sc2" style={{ background: '#afc0a0' }}>
+        <div className="scene-bg" id="bg2" style={{ background: 'radial-gradient(circle at 75% 35%,rgba(60,100,50,0.25) 0%,transparent 55%)' }} />
+        <div className="scene-overlay" />
+        <div className="scene-fg" id="fg2">
+          <div className="s-num" style={{ color: '#2d5220' }}>02 — Personalize</div>
+          <div className="s-title" style={{ color: '#0a150a' }}>
+            Built around <em style={{ color: '#2d522d' }}>your</em> baby's journey.
+          </div>
+          <div className="s-body" style={{ color: '#1a3018' }}>
+            MindNest learns your child's age, stage, and needs — so every answer feels like it was written just for you.
+          </div>
+          <div className="pills">
+            <div className="pill">Newborn</div>
+            <div className="pill">3 Months</div>
+            <div className="pill">6 Months</div>
+            <div className="pill">12 Months</div>
+            <div className="pill">36 Months</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Scene 3 — Milestones ── */}
+      <div className="scene" id="sc3" style={{ background: '#a6b898' }}>
+        <div className="scene-bg" id="bg3" style={{ background: 'radial-gradient(circle at 50% 70%,rgba(60,100,50,0.25) 0%,transparent 55%)' }} />
+        <div className="scene-overlay" />
+        <div className="scene-fg" id="fg3">
+          <div className="s-num" style={{ color: '#2d5220' }}>03 — Milestones</div>
+          <div className="s-title" style={{ color: '#0a150a' }}>
+            Every month, <em style={{ color: '#2d522d' }}>something new</em> emerges.
+          </div>
+          <div className="s-body" style={{ color: '#1a3018' }}>
+            Sleep shifts. Growth spurts. First words. First steps. Nest tracks what matters most — so you are always one step ahead, never left guessing.
+          </div>
+        </div>
+      </div>
+
+      {/* ── Scene 4 — Meet Nest ── */}
+      <div className="scene scene-dark" id="sc4">
+        <div id="sc4-inner">
+          <SeedOfLifeOrb />
+
+          <div className="s-num" style={{ color: '#7ab868' }}>04 — Meet Nest</div>
+          <div className="s-title" style={{ color: '#e8e4d4', marginBottom: 10 }}>
+            Meet the mind <em style={{ color: '#9dd884' }}>behind every answer.</em>
+          </div>
+          <div className="s-body" style={{ color: '#8aaa78', marginBottom: 6 }}>
+            MindNest's AI core — a pediatric intelligence engine trained on developmental science, sleep research, and real parenting data. It doesn't just respond. It reasons, adapts, and grows with your child.
+          </div>
+
+          <div className="feat-grid">
+            <div className="feat">
+              <div className="feat-title">Always There</div>
+              <div className="feat-body">Day or night, feeding or 3am panic — Nest responds in seconds, any hour, any stage. No waiting rooms. No hold music.</div>
+            </div>
+            <div className="feat">
+              <div className="feat-title">Knows Your Baby</div>
+              <div className="feat-body">Nest learns your child's exact age and stage, tailoring every answer to where they are right now — not where babies are on average.</div>
+            </div>
+            <div className="feat">
+              <div className="feat-title">Built on Science</div>
+              <div className="feat-body">Every response is grounded in peer-reviewed pediatric research. Not forum opinions. Not parenting myths. Just evidence you can act on.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Scene 5 — Begin ── */}
+      <div className="scene scene-5" id="sc5" ref={sc5Ref}>
+        <div className="s5-wrap">
+          <div className="s5-num s-num" style={{ color: '#7ab868' }}>05 — Begin</div>
+          <div className="s5-title s-title" style={{ color: '#e8e4d4' }}>
+            Your journey <em style={{ color: '#9dd884' }}>starts now.</em>
+          </div>
+          <div className="s5-body s-body" style={{ color: '#8aaa78', marginBottom: 8 }}>
+            Join thousands of parents navigating the 0 to 36 month adventure with confidence, clarity, and calm.
+          </div>
+          <div className="s5-cta">
+            <button className="s5-cta-btn" id="s5Btn" onClick={handleS5Click}>
+              Get Started with MindNest
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
   )
 }
