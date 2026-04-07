@@ -51,7 +51,7 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
 .scene-bg{position:absolute;inset:0;overflow:hidden;z-index:0;}
 .scene-fg{position:relative;z-index:2;text-align:center;max-width:620px;opacity:0;transform:translateY(32px);transition:opacity 0.6s ease,transform 0.6s cubic-bezier(0.4,0,0.2,1);}
 .scene-fg.on{opacity:1;transform:translateY(0);}
-.s-num{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:16px;font-weight:500;}
+.s-num{font-size:13px;letter-spacing:0.22em;text-transform:uppercase;margin-bottom:18px;font-weight:500;color:#7a9a68;}
 .s-title{font-family:'Cormorant Garamond',serif;font-size:clamp(30px,5.5vw,56px);font-weight:500;line-height:1.15;margin-bottom:14px;}
 .s-title em{font-style:italic;}
 .s-body{font-size:15px;font-weight:400;line-height:1.85;max-width:440px;margin:0 auto;}
@@ -64,7 +64,7 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
 .scene-fg.on .pill:nth-child(5){opacity:1;transform:translateY(0);transition-delay:0.56s;}
 
 .scene-dark{background:#0d1a0d;}
-#sc4-inner{display:flex;flex-direction:column;align-items:center;text-align:center;max-width:680px;opacity:0;transform:translateY(20px);transition:opacity 0.9s ease,transform 0.9s ease;}
+#sc4-inner{display:flex;flex-direction:column;align-items:center;text-align:center;max-width:680px;opacity:0;transform:translateY(20px);transition:opacity 0.9s ease,transform 0.9s ease;padding:40px 20px;}
 .s4-on #sc4-inner{opacity:1;transform:translateY(0);}
 
 .orb-wrap{position:relative;width:220px;height:220px;cursor:pointer;margin:0 auto 32px;transition:transform 0.7s cubic-bezier(0.34,1.2,0.64,1),filter 0.7s ease;filter:drop-shadow(0 8px 24px rgba(60,160,60,0.18));}
@@ -104,13 +104,14 @@ html,body{width:100%;overflow-x:hidden;background:#f4f1e6;font-family:'DM Sans',
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 @media(max-width:768px){
-  .scene{padding:40px 20px;}
+  .scene{height:auto;min-height:100vh;padding:60px 20px;}
   .h-btns{flex-direction:column;align-items:center;gap:10px;}
   #gs-btn,#si-btn{width:220px;text-align:center;}
   .feat-grid{grid-template-columns:1fr;gap:10px;}
-  .orb-wrap{width:180px;height:180px;}
+  .orb-wrap{width:180px;height:180px;margin-bottom:24px;}
   .s-title{font-size:clamp(28px,7vw,38px)!important;}
   .s-body{font-size:14px!important;}
+  #sc4-inner{padding:60px 20px 40px;}
 }
 </style>
 </head>
