@@ -14,6 +14,7 @@
 html {
   width: 100%;
   overflow-x: hidden;
+  background: #dde8d8;
 }
 
 body {
@@ -44,8 +45,8 @@ body::after {
 
 /* Refined scrollbar */
 ::-webkit-scrollbar       { width: 3px; height: 3px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cdd2cb; border-radius: 99px; }
+::-webkit-scrollbar-track { background: #dde8d8; }
+::-webkit-scrollbar-thumb { background: #9aaa90; border-radius: 99px; }
 
 /* ============================================================
    MindNest Portal / Convergence Animation System

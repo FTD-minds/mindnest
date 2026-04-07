@@ -349,6 +349,14 @@ export default function MindNestLanding() {
 
   return (
     <div style={{ width: '100%' }}>
+      <style>{`
+        .h-tag,.h-desc,.s-body,.feat-body{font-family:'DM Sans',sans-serif!important;}
+        .h-tag{font-weight:600!important;}
+        .h-desc{font-weight:500!important;}
+        .s-body{font-weight:500!important;}
+        .h-tagline,.h-title,.s-title{font-family:'Cormorant Garamond',serif!important;}
+        .h-tagline{font-weight:600!important;}
+      `}</style>
 
       {/* ── Hero ── */}
       <div ref={heroRef} id="hero">
