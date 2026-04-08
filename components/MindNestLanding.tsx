@@ -501,7 +501,7 @@ export default function MindNestLanding() {
             Join thousands of parents navigating the 0 to 36 month adventure with confidence, clarity, and calm.
           </div>
           <div className="s5-cta">
-            <button className="s5-cta-btn" id="s5Btn" onClick={handleS5Click}>
+            <button className="s5-cta-btn" id="s5Btn" onClick={handleS5Click} style={{ background: '#f0ede0', color: '#1c2e1c' }}>
               Get Started with MindNest
             </button>
           </div>
