@@ -349,14 +349,6 @@ export default function MindNestLanding() {
 
   return (
     <div style={{ width: '100%' }}>
-      <style>{`
-        .h-tag,.h-desc,.s-body,.feat-body{font-family:'DM Sans',sans-serif!important;}
-        .h-tag{font-weight:600!important;}
-        .h-desc{font-weight:500!important;}
-        .s-body{font-weight:500!important;}
-        .h-tagline,.h-title,.s-title{font-family:'Cormorant Garamond',serif!important;}
-        .h-tagline{font-weight:600!important;}
-      `}</style>
 
       {/* ── Hero ── */}
       <div ref={heroRef} id="hero">
@@ -477,7 +469,7 @@ export default function MindNestLanding() {
           <div className="s-title" style={{ color: '#e8e4d4', marginBottom: 10 }}>
             Meet the mind <em style={{ color: '#9dd884' }}>behind every answer.</em>
           </div>
-          <div className="s-body" style={{ color: '#8aaa78', marginBottom: 6 }}>
+          <div className="s-body" style={{ color: '#8aaa78', marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
             MindNest's AI core — a pediatric intelligence engine trained on developmental science, sleep research, and real parenting data. It doesn't just respond. It reasons, adapts, and grows with your child.
           </div>
 
@@ -505,7 +497,7 @@ export default function MindNestLanding() {
           <div className="s5-title s-title" style={{ color: '#e8e4d4' }}>
             Your journey <em style={{ color: '#9dd884' }}>starts now.</em>
           </div>
-          <div className="s5-body s-body" style={{ color: '#8aaa78', marginBottom: 8 }}>
+          <div className="s5-body s-body" style={{ color: '#8aaa78', marginBottom: 8, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
             Join thousands of parents navigating the 0 to 36 month adventure with confidence, clarity, and calm.
           </div>
           <div className="s5-cta">
