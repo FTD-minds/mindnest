@@ -303,7 +303,7 @@ body::after {
 .s-title {
   font-family: 'Cormorant Garamond', serif;
   font-size: clamp(30px, 5.5vw, 56px);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.15;
   margin-bottom: 14px;
 }
