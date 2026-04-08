@@ -118,6 +118,15 @@ html,body{width:100%;overflow-x:hidden;background:#dde8d8;font-family:'DM Sans',
   #sc1{background:#a8bc96!important;}
   #sc2{background:#9eb38c!important;}
   #sc3{background:#94aa82!important;}
+  .orb-wrap{
+    transform:translateY(-8px);
+    filter:drop-shadow(0 0 35px rgba(80,200,80,0.42)) drop-shadow(0 16px 36px rgba(40,120,40,0.32));
+    animation:orbFloat 3s ease-in-out infinite;
+  }
+  @keyframes orbFloat{
+    0%,100%{transform:translateY(-8px);filter:drop-shadow(0 0 35px rgba(80,200,80,0.42)) drop-shadow(0 16px 36px rgba(40,120,40,0.32));}
+    50%{transform:translateY(-16px);filter:drop-shadow(0 0 55px rgba(80,200,80,0.6)) drop-shadow(0 24px 48px rgba(40,120,40,0.45));}
+  }
 }
 </style>
 </head>
