@@ -240,7 +240,7 @@ export async function POST(request: Request) {
   const { messages } = await request.json()
 
   const response = await claude.messages.create({
-    model:      'claude-sonnet-4-6',
+    model:      'claude-sonnet-4-5-20251001',
     max_tokens: 1024,
     system:     systemPrompt,
     messages,
