@@ -31,6 +31,13 @@ function todayLabel() {
   })
 }
 
+function timeOfDay() {
+  const h = new Date().getHours()
+  if (h < 12) return 'morning'
+  if (h < 17) return 'afternoon'
+  return 'evening'
+}
+
 export default async function DashboardPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -45,10 +52,10 @@ export default async function DashboardPage() {
     )
   }
 
-  // Profile — includes full_name + selected_baby_id
+  // Profile — includes full_name, selected_baby_id, parent_type, pregnancy_week
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, selected_baby_id')
+    .select('full_name, selected_baby_id, parent_type, pregnancy_week')
     .eq('id', user.id)
     .single()
 
@@ -106,7 +113,9 @@ export default async function DashboardPage() {
     completedToday = completions?.map(c => c.activity_id) ?? []
   }
 
-  const firstName = profile?.full_name?.split(' ')[0] ?? 'Mama'
+  const firstName    = profile?.full_name?.split(' ')[0] ?? 'there'
+  const isExpecting  = profile?.parent_type === 'expecting'
+  const greeting     = `Good ${timeOfDay()},`
 
   return (
     <div className="min-h-screen bg-sage-50 px-5 pt-10 pb-28 lg:pb-10 max-w-xl mx-auto">
@@ -117,27 +126,36 @@ export default async function DashboardPage() {
           {todayLabel()}
         </p>
         <h1 className="font-display leading-[1.08] text-brand-900 mb-4">
-          <span className="text-[2.6rem] font-normal italic block">Good morning,</span>
+          <span className="text-[2.6rem] font-normal italic block">{greeting}</span>
           <span className="text-[2.6rem] font-semibold block">{firstName}</span>
         </h1>
-        {baby && (
+        {isExpecting ? (
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
+            <p className="text-sm text-sage-400 tracking-wide">
+              Your baby is on the way
+            </p>
+          </div>
+        ) : baby ? (
           <div className="flex items-center gap-2.5">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
             <p className="text-sm text-sage-400 tracking-wide">
               {baby.name} is growing beautifully
             </p>
           </div>
-        )}
+        ) : null}
       </header>
 
-      {/* ── Baby switcher (only shown when 2+ babies) ─────────────────────── */}
-      <BabySwitcher
-        babies={allBabies.map(b => ({ id: b.id, name: b.name }))}
-        selectedBabyId={selectedId}
-      />
+      {/* ── Baby switcher (only shown when 2+ babies, not expecting) ─────── */}
+      {!isExpecting && (
+        <BabySwitcher
+          babies={allBabies.map(b => ({ id: b.id, name: b.name }))}
+          selectedBabyId={selectedId}
+        />
+      )}
 
       {/* ── Twins panel (only shown when selected baby has a linked twin) ── */}
-      {baby?.is_twin && baby?.twin_sibling_id && (() => {
+      {!isExpecting && baby?.is_twin && baby?.twin_sibling_id && (() => {
         const twin = allBabies.find(b => b.id === baby.twin_sibling_id)
         return twin ? (
           <TwinsPanel baby={baby} twin={twin} />
@@ -167,46 +185,78 @@ export default async function DashboardPage() {
         </div>
       </Link>
 
-      {/* ── Today's Activities preview ────────────────────────────────────── */}
-      <section className="mb-5">
-        <div className="flex items-baseline justify-between mb-4">
-          <h2 className="font-display text-xl italic text-brand-900">
-            Today's Activities
-          </h2>
-          <Link
-            href="/activities"
-            className="text-[10px] uppercase tracking-[0.18em] text-brand-600 hover:text-brand-700 transition-colors"
-          >
-            View all
-          </Link>
-        </div>
-
-        {baby ? (
-          <ActivityFeed
-            initialActivities={activities}
-            babyId={baby.id}
-            babyAgeMonths={ageMonths}
-            isPremiumUser={isPremiumUser ?? false}
-            completedToday={completedToday}
-            limit={3}
-          />
-        ) : (
+      {/* ── Pregnancy week card (expecting only) ─────────────────────────── */}
+      {isExpecting && (
+        <section className="mb-5">
           <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-8 text-center">
-            <p className="font-display text-base italic text-sage-400 mb-1">
-              No activities yet
-            </p>
-            <p className="text-xs text-sage-400 leading-relaxed">
-              Add your baby's profile to unlock age-matched activities.
-            </p>
+            {profile?.pregnancy_week ? (
+              <>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3 font-medium">
+                  Your Pregnancy
+                </p>
+                <p className="font-display text-[2.8rem] font-semibold text-brand-900 leading-none mb-1">
+                  Week {profile.pregnancy_week}
+                </p>
+                <p className="font-display text-base italic text-sage-400 mt-2">
+                  Here&apos;s what&apos;s happening this week
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-display text-base italic text-sage-400 mb-1">
+                  Your journey is just beginning
+                </p>
+                <p className="text-xs text-sage-400 leading-relaxed">
+                  Ask Nest anything about your pregnancy — she&apos;s here for every week of the journey.
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Today's Activities preview (non-expecting only) ───────────────── */}
+      {!isExpecting && (
+        <section className="mb-5">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="font-display text-xl italic text-brand-900">
+              Today's Activities
+            </h2>
             <Link
-              href="/profile/add-baby"
-              className="inline-block mt-3 text-[11px] uppercase tracking-wider text-brand-600 hover:text-brand-700"
+              href="/activities"
+              className="text-[10px] uppercase tracking-[0.18em] text-brand-600 hover:text-brand-700 transition-colors"
             >
-              Add baby →
+              View all
             </Link>
           </div>
-        )}
-      </section>
+
+          {baby ? (
+            <ActivityFeed
+              initialActivities={activities}
+              babyId={baby.id}
+              babyAgeMonths={ageMonths}
+              isPremiumUser={isPremiumUser ?? false}
+              completedToday={completedToday}
+              limit={3}
+            />
+          ) : (
+            <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-8 text-center">
+              <p className="font-display text-base italic text-sage-400 mb-1">
+                No activities yet
+              </p>
+              <p className="text-xs text-sage-400 leading-relaxed">
+                Add your baby&apos;s profile to unlock age-matched activities.
+              </p>
+              <Link
+                href="/profile/add-baby"
+                className="inline-block mt-3 text-[11px] uppercase tracking-wider text-brand-600 hover:text-brand-700"
+              >
+                Add baby →
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Daily Check-in ────────────────────────────────────────────────── */}
       <Link href="/checkin">
