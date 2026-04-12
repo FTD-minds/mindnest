@@ -5,8 +5,13 @@ import { useNestChat } from '@/hooks/useNestChat'
 import { NestMessage } from './NestMessage'
 import { NestInput } from './NestInput'
 
-export function NestChat() {
-  const { messages, sendMessage, isLoading, error } = useNestChat()
+interface NestChatProps {
+  firstName?: string
+  parentType?: string | null
+}
+
+export function NestChat({ firstName = 'there', parentType = null }: NestChatProps) {
+  const { messages, sendMessage, isLoading, error } = useNestChat({ firstName, parentType })
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { claude } from '@/lib/claude'
+import { createServerClient } from '@/lib/supabase/server'
 
 const NEST_SYSTEM_PROMPT = `You are Nest — the AI heart of MindNest, a wellness and development app for first-time mothers with babies aged 0–36 months.
 
@@ -135,13 +136,113 @@ Working memory, inhibitory control, and cognitive flexibility begin developing i
 - Never open with "Great question!" or any hollow affirmation
 - Never end with a generic disclaimer paragraph — weave professional consultation naturally into the response where relevant`
 
+function getAgeMonths(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth)
+  const now = new Date()
+  const months =
+    (now.getFullYear() - dob.getFullYear()) * 12 +
+    (now.getMonth() - dob.getMonth())
+  return Math.max(0, Math.min(36, months))
+}
+
+function buildContextBlock(
+  firstName: string,
+  parentType: string | null,
+  pregnancyWeek: number | null,
+  babyName: string | null,
+  babyAgeMonths: number | null,
+): string {
+  const lines: string[] = [
+    '## About this user (injected context — use naturally, never recite back)',
+    `- First name: ${firstName}`,
+    `- Parent type: ${parentType ?? 'unknown'}`,
+  ]
+
+  if (parentType === 'expecting') {
+    if (pregnancyWeek) {
+      lines.push(`- Currently pregnant, week ${pregnancyWeek} of 40`)
+    } else {
+      lines.push('- Currently pregnant (exact week not provided)')
+    }
+    lines.push(
+      '',
+      '## Guidance for expecting parents',
+      'This user is pregnant, not yet a parent. Shift your focus accordingly:',
+      '- Prioritise prenatal wellbeing: sleep, stress, nutrition, emotional support',
+      '- Answer questions about fetal development, birth preparation, and what to expect in the newborn period',
+      '- You may draw on your pediatric knowledge to prepare them for what comes after birth',
+      `- Address them by their first name (${firstName}), never "mama" — they are not yet a parent`,
+      '- Do not ask about their baby\'s milestones or behaviours — the baby is not born yet',
+    )
+  } else {
+    if (babyName && babyAgeMonths !== null) {
+      lines.push(`- Baby's name: ${babyName}`)
+      lines.push(`- Baby's age: ${babyAgeMonths} month${babyAgeMonths === 1 ? '' : 's'} old`)
+      lines.push(
+        '',
+        '## Guidance for this conversation',
+        `- Use ${babyName}'s name naturally when discussing the baby`,
+        `- All developmental context should be calibrated to ${babyAgeMonths} months`,
+        `- Address the parent as ${firstName}`,
+      )
+    } else if (babyName) {
+      lines.push(`- Baby's name: ${babyName} (age unknown)`)
+    }
+
+    if (parentType === 'dad') {
+      lines.push(`- This user identifies as a dad — address them as ${firstName}, never "mama"`)
+    } else if (parentType === 'partner') {
+      lines.push(`- This user identifies as a partner — address them as ${firstName}, never "mama"`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
 export async function POST(request: Request) {
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // ── User context ──────────────────────────────────────────────────────────
+  const [{ data: profile }, { data: babies }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('full_name, parent_type, pregnancy_week, selected_baby_id')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('babies')
+      .select('id, name, date_of_birth')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }),
+  ])
+
+  const firstName     = profile?.full_name?.split(' ')[0] ?? 'there'
+  const parentType    = profile?.parent_type ?? null
+  const pregnancyWeek = profile?.pregnancy_week ?? null
+
+  // Resolve selected baby
+  const selectedId  = profile?.selected_baby_id ?? babies?.[0]?.id ?? null
+  const baby        = babies?.find(b => b.id === selectedId) ?? babies?.[0] ?? null
+  const babyName    = baby?.name ?? null
+  const babyAgeMonths = baby?.date_of_birth ? getAgeMonths(baby.date_of_birth) : null
+
+  // ── Build system prompt ───────────────────────────────────────────────────
+  const contextBlock  = buildContextBlock(firstName, parentType, pregnancyWeek, babyName, babyAgeMonths)
+  const systemPrompt  = `${contextBlock}\n\n---\n\n${NEST_SYSTEM_PROMPT}`
+
+  // ── Call Claude ───────────────────────────────────────────────────────────
   const { messages } = await request.json()
 
   const response = await claude.messages.create({
-    model: 'claude-sonnet-4-6',
+    model:      'claude-sonnet-4-6',
     max_tokens: 1024,
-    system: NEST_SYSTEM_PROMPT,
+    system:     systemPrompt,
     messages,
   })
 

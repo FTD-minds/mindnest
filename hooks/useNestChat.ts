@@ -3,16 +3,44 @@
 import { useState, useCallback } from 'react'
 import type { ChatMessage } from '@/types'
 
-const INITIAL_MESSAGE: ChatMessage = {
-  role: 'assistant',
-  content:
-    "Hi mama! I'm Nest, your personal wellness coach. " +
-    "Every age. Every stage — I'm here for all of it. " +
-    "How are you and your little one doing today?",
+interface UseNestChatOptions {
+  firstName?: string
+  parentType?: string | null
 }
 
-export function useNestChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE])
+function buildInitialMessage(firstName: string, parentType: string | null): ChatMessage {
+  let content: string
+
+  if (parentType === 'expecting') {
+    content =
+      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `I'm here to support you through every week of your pregnancy and beyond. ` +
+      `How are you feeling today?`
+  } else if (parentType === 'dad') {
+    content =
+      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Every age. Every stage — I'm here for all of it. ` +
+      `How are you and your little one doing today?`
+  } else if (parentType === 'partner') {
+    content =
+      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Every age. Every stage — I'm here for all of it. ` +
+      `How are you and your little one doing today?`
+  } else {
+    // mom or unknown
+    content =
+      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Every age. Every stage — I'm here for all of it. ` +
+      `How are you and your little one doing today?`
+  }
+
+  return { role: 'assistant', content }
+}
+
+export function useNestChat({ firstName = 'there', parentType = null }: UseNestChatOptions = {}) {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    buildInitialMessage(firstName, parentType),
+  ])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError]         = useState<string | null>(null)
 
@@ -40,7 +68,6 @@ export function useNestChat() {
         setMessages(prev => [...prev, nestMessage])
       } catch {
         setError('Nest is unavailable right now. Please try again in a moment.')
-        // Remove the user message if the request failed
         setMessages(prev => prev.slice(0, -1))
       } finally {
         setIsLoading(false)
