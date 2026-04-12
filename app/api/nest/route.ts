@@ -239,12 +239,24 @@ export async function POST(request: Request) {
   // ── Call Claude ───────────────────────────────────────────────────────────
   const { messages } = await request.json()
 
-  const response = await claude.messages.create({
-    model:      'claude-sonnet-4-5-20251001',
-    max_tokens: 1024,
-    system:     systemPrompt,
-    messages,
-  })
+  let response
+  try {
+    response = await claude.messages.create({
+      model:      'claude-sonnet-4-5-20251001',
+      max_tokens: 1024,
+      system:     systemPrompt,
+      messages,
+    })
+  } catch (err: unknown) {
+    const e = err as { message?: string; status?: number; stack?: string }
+    console.error('[Nest API] Claude error:', {
+      message: e?.message,
+      status:  e?.status,
+      stack:   e?.stack,
+      raw:     err,
+    })
+    return NextResponse.json({ error: 'Claude API error', detail: e?.message }, { status: 502 })
+  }
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
 
