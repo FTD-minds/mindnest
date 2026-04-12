@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ParentTypeSelector } from '@/components/auth/ParentTypeSelector'
+import { NestOrb } from '@/components/ui/NestOrb'
 import { createClient } from '@/lib/supabase/client'
 import type { ParentType } from '@/types'
 
@@ -132,14 +133,9 @@ export default function OnboardingPage() {
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: '50%',
-            background: 'rgba(240,237,224,0.1)',
-            border: '1px solid rgba(240,237,224,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px',
-            fontSize: 22, color: '#f0ede0', fontFamily: "'Cormorant Garamond', serif",
-          }}>N</div>
+          <div style={{ margin: '0 auto 16px', width: 'fit-content' }}>
+            <NestOrb size={52} />
+          </div>
           <h1 style={{
             fontFamily: "'Cormorant Garamond', serif",
             fontSize: 'clamp(26px, 5vw, 34px)',
