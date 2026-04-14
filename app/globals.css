@@ -407,7 +407,7 @@ body::after {
 /* ── Orb voice states ─────────────────────────────────────────────────────── */
 .orb-wrap.orb-listening {
   transition: none;
-  animation: orbListenPulse 1.1s ease-in-out infinite;
+  animation: orbListenPulse 2.0s ease-in-out infinite;
 }
 @keyframes orbListenPulse {
   0%, 100% {
@@ -422,7 +422,7 @@ body::after {
 
 .orb-wrap.orb-thinking {
   transition: none;
-  animation: orbThinkPulse 0.85s ease-in-out infinite;
+  animation: orbThinkPulse 1.6s ease-in-out infinite;
 }
 @keyframes orbThinkPulse {
   0%, 100% {
