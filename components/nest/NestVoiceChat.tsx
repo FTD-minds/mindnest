@@ -106,13 +106,12 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
       const nestMsg: ChatMessage = { role: 'assistant', content: nestText }
       setMessages(prev => [...prev, nestMsg])
 
-      // 2. Get ElevenLabs audio (truncate to 500 chars for voice; full text shown in transcript)
+      // 2. Get ElevenLabs audio
       try {
-        const voiceText = nestText.slice(0, 500)
         const voiceRes = await fetch('/api/nest-voice', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ text: voiceText, voiceId: selectedVoice }),
+          body:    JSON.stringify({ text: nestText, voiceId: selectedVoice }),
         })
         if (!voiceRes.ok) throw new Error(`Voice API ${voiceRes.status}`)
 
