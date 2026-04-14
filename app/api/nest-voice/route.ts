@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import { ElevenLabsClient } from 'elevenlabs'
 import { createServerClient } from '@/lib/supabase/server'
 
-const elevenlabs = new ElevenLabsClient({
-  apiKey: process.env.ELEVENLABS_API_KEY!,
-})
-
 export async function POST(request: Request) {
+  const elevenlabs = new ElevenLabsClient({
+    apiKey: process.env.ELEVENLABS_API_KEY!,
+  })
+
   // ── Auth ──────────────────────────────────────────────────────────────────
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
