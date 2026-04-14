@@ -2,11 +2,15 @@
 
 import { useState } from 'react'
 
+export type OrbState = 'idle' | 'listening' | 'thinking' | 'speaking'
+
 interface NestOrbProps {
-  size?: number
+  size?:    number
+  state?:   OrbState
+  onClick?: () => void
 }
 
-export function NestOrb({ size = 52 }: NestOrbProps) {
+export function NestOrb({ size = 52, state = 'idle', onClick }: NestOrbProps) {
   const [touched, setTouched] = useState(false)
 
   const handleTouch = () => {
@@ -14,11 +18,19 @@ export function NestOrb({ size = 52 }: NestOrbProps) {
     setTimeout(() => setTouched(false), 1500)
   }
 
+  const stateClass = state !== 'idle' ? ` orb-${state}` : ''
+
   return (
     <div
-      className={`orb-wrap${touched ? ' orb-touched' : ''}`}
+      className={`orb-wrap${touched ? ' orb-touched' : ''}${stateClass}`}
       onTouchStart={handleTouch}
-      style={{ width: size, height: size }}
+      onClick={onClick}
+      style={{
+        width:  size,
+        height: size,
+        cursor: onClick ? 'pointer' : undefined,
+        margin: 0,
+      }}
     >
       <svg
         className="orb-svg"

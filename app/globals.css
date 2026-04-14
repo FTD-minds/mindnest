@@ -404,6 +404,52 @@ body::after {
 .orb-wrap:hover .geo-lines,
 .orb-wrap.orb-touched .geo-lines { opacity: 1; filter: blur(0); }
 
+/* ── Orb voice states ─────────────────────────────────────────────────────── */
+.orb-wrap.orb-listening {
+  transition: none;
+  animation: orbListenPulse 1.1s ease-in-out infinite;
+}
+@keyframes orbListenPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 22px rgba(80,220,80,0.65)) drop-shadow(0 0 50px rgba(80,200,80,0.3));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 45px rgba(100,240,100,1)) drop-shadow(0 0 90px rgba(80,200,80,0.55));
+    transform: scale(1.05);
+  }
+}
+
+.orb-wrap.orb-thinking {
+  transition: none;
+  animation: orbThinkPulse 0.85s ease-in-out infinite;
+}
+@keyframes orbThinkPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 18px rgba(80,200,80,0.4)) drop-shadow(0 0 40px rgba(80,200,80,0.15));
+    opacity: 0.75;
+  }
+  50% {
+    filter: drop-shadow(0 0 55px rgba(80,210,80,0.95)) drop-shadow(0 0 110px rgba(80,200,80,0.45));
+    opacity: 1;
+  }
+}
+
+.orb-wrap.orb-speaking {
+  transition: none;
+  animation: orbSpeakPulse 0.42s ease-in-out infinite alternate;
+}
+@keyframes orbSpeakPulse {
+  0% {
+    filter: drop-shadow(0 0 28px rgba(80,200,80,0.6)) drop-shadow(0 0 55px rgba(80,200,80,0.28));
+    transform: scale(1);
+  }
+  100% {
+    filter: drop-shadow(0 0 62px rgba(110,240,110,0.92)) drop-shadow(0 0 120px rgba(80,200,80,0.5));
+    transform: scale(1.07);
+  }
+}
+
 /* Feature cards */
 .feat-grid {
   display: grid;

@@ -1,12 +1,12 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { NestChat } from '@/components/nest/NestChat'
+import { NestVoiceChat } from '@/components/nest/NestVoiceChat'
 
 export default async function NestPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let firstName  = 'there'
-  let parentType: string | null = null
+  let firstName:  string      = 'there'
+  let parentType: string|null = null
 
   if (user) {
     const { data: profile } = await supabase
@@ -20,8 +20,8 @@ export default async function NestPage() {
   }
 
   return (
-    <div className="h-screen lg:h-[calc(100vh)] flex flex-col">
-      <NestChat firstName={firstName} parentType={parentType} />
+    <div className="h-screen flex flex-col">
+      <NestVoiceChat firstName={firstName} parentType={parentType} />
     </div>
   )
 }
