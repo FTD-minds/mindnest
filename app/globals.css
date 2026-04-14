@@ -437,7 +437,7 @@ body::after {
 
 .orb-wrap.orb-speaking {
   transition: none;
-  animation: orbSpeakPulse 0.42s ease-in-out infinite alternate;
+  animation: orbSpeakPulse 1.4s ease-in-out infinite alternate;
 }
 @keyframes orbSpeakPulse {
   0% {
