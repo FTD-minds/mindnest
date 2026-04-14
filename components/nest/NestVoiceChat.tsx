@@ -4,6 +4,20 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { NestOrb, type OrbState } from '@/components/ui/NestOrb'
 import type { ChatMessage } from '@/types'
 
+// ── Strip markdown from Nest responses ────────────────────────────────────────
+function stripMarkdown(text: string): string {
+  return text
+    .split('\n')
+    .filter(line => !/^#{1,6}\s/.test(line))         // remove ## headings
+    .filter(line => !/^[\-\*]\s/.test(line.trimStart())) // remove bullet lines
+    .join('\n')
+    .replace(/\*\*(.+?)\*\*/g, '$1')                 // **bold**
+    .replace(/\*(.+?)\*/g, '$1')                      // *italic*
+    .replace(/`(.+?)`/g, '$1')                        // `code`
+    .replace(/\n{3,}/g, '\n\n')                       // collapse excess newlines
+    .trim()
+}
+
 // ── Voice options ──────────────────────────────────────────────────────────────
 const VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah',   label: 'Warm & Reassuring'    },
@@ -291,7 +305,7 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
                 ? 'rgba(240,237,224,0.75)'
                 : 'rgba(240,237,224,0.65)',
             }}>
-              {msg.content}
+              {msg.role === 'assistant' ? stripMarkdown(msg.content) : msg.content}
             </div>
           </div>
         ))}
