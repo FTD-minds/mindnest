@@ -202,11 +202,6 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
           fontSize: 22, fontWeight: 400, fontStyle: 'italic',
           color: '#f0ede0', margin: 0,
         }}>Nest</p>
-        <p style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
-          color: 'rgba(240,237,224,0.35)', margin: 0,
-        }}>Wellness Coach</p>
       </header>
 
       {/* ── Orb + controls ── */}
