@@ -36,7 +36,7 @@ export default function LoginPage() {
         {/* Logo / wordmark */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <div style={{ margin: '0 auto 16px', width: 'fit-content' }}>
-            <NestOrb size={52} />
+            <NestOrb size={90} />
           </div>
           <h1 style={{
             fontFamily: "'Cormorant Garamond', serif",
