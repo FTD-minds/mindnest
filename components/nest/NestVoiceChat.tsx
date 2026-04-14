@@ -59,15 +59,21 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
   const [messages,      setMessages]      = useState<ChatMessage[]>(() => [buildInitialMessage(firstName, parentType)])
   const [textInput,     setTextInput]     = useState('')
   const [error,         setError]         = useState<string | null>(null)
+  const [voiceEnabled,  setVoiceEnabled]  = useState(true)
+  const [autoListen,    setAutoListen]    = useState(true)
 
   const audioRef       = useRef<HTMLAudioElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null)
   const transcriptRef  = useRef<HTMLDivElement>(null)
   const orbStateRef    = useRef<OrbState>('idle')
+  const autoListenRef  = useRef(true)
+  const voiceEnabledRef = useRef(true)
 
-  // Keep ref in sync so event handlers see current value
+  // Keep refs in sync so event handlers see current values
   useEffect(() => { orbStateRef.current = orbState }, [orbState])
+  useEffect(() => { autoListenRef.current = autoListen }, [autoListen])
+  useEffect(() => { voiceEnabledRef.current = voiceEnabled }, [voiceEnabled])
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -80,6 +86,36 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
       recognitionRef.current?.abort()
       if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = '' }
     }
+  }, [])
+
+  // ── Start listening (shared between manual tap and auto-listen) ───────────────
+  const startListening = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any
+    const SpeechRecognition = w.SpeechRecognition ?? w.webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    const recognition              = new SpeechRecognition()
+    recognition.continuous         = false
+    recognition.interimResults     = false
+    recognition.lang               = 'en-US'
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript
+      handleSend(transcript)
+    }
+
+    recognition.onerror = () => setOrbState('idle')
+    recognition.onend   = () => {
+      if (orbStateRef.current === 'listening') setOrbState('idle')
+    }
+
+    recognition.start()
+    recognitionRef.current = recognition
+    setOrbState('listening')
+  // handleSend is added after definition via ref pattern — see below
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Main flow ────────────────────────────────────────────────────────────────
@@ -106,42 +142,50 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
       const nestMsg: ChatMessage = { role: 'assistant', content: nestText }
       setMessages(prev => [...prev, nestMsg])
 
-      // 2. Get ElevenLabs audio
-      try {
-        const voiceRes = await fetch('/api/nest-voice', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ text: nestText, voiceId: selectedVoice }),
-        })
-        if (!voiceRes.ok) throw new Error(`Voice API ${voiceRes.status}`)
+      // 2. Get ElevenLabs audio (skipped if voice is muted)
+      if (voiceEnabledRef.current) {
+        try {
+          const voiceRes = await fetch('/api/nest-voice', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ text: nestText, voiceId: selectedVoice }),
+          })
+          if (!voiceRes.ok) throw new Error(`Voice API ${voiceRes.status}`)
 
-        const blob = await voiceRes.blob()
-        const url  = URL.createObjectURL(blob)
+          const blob = await voiceRes.blob()
+          const url  = URL.createObjectURL(blob)
 
-        if (!audioRef.current) audioRef.current = new Audio()
-        audioRef.current.src = url
+          if (!audioRef.current) audioRef.current = new Audio()
+          audioRef.current.src = url
 
-        audioRef.current.onended = () => {
+          audioRef.current.onended = () => {
+            URL.revokeObjectURL(url)
+            setOrbState('idle')
+            if (autoListenRef.current) startListening()
+          }
+          audioRef.current.onerror = () => {
+            URL.revokeObjectURL(url)
+            setOrbState('idle')
+          }
+
+          setOrbState('speaking')
+          await audioRef.current.play()
+        } catch (voiceErr) {
+          console.error('[NestVoiceChat] voice error (silent)', voiceErr)
           setOrbState('idle')
-          URL.revokeObjectURL(url)
+          if (autoListenRef.current) startListening()
         }
-        audioRef.current.onerror = () => {
-          setOrbState('idle')
-          URL.revokeObjectURL(url)
-        }
-
-        setOrbState('speaking')
-        await audioRef.current.play()
-      } catch (voiceErr) {
-        console.error('[NestVoiceChat] voice error (silent)', voiceErr)
+      } else {
+        // Voice off — go idle, then auto-listen if enabled
         setOrbState('idle')
+        if (autoListenRef.current) startListening()
       }
     } catch (err) {
       console.error('[NestVoiceChat]', err)
       setError('Nest is unavailable right now. Please try again.')
       setOrbState('idle')
     }
-  }, [messages, selectedVoice])
+  }, [messages, selectedVoice, startListening])
 
   // ── Orb tap ──────────────────────────────────────────────────────────────────
   function handleOrbClick() {
@@ -175,25 +219,7 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
       return
     }
 
-    const recognition              = new SpeechRecognition()
-    recognition.continuous         = false
-    recognition.interimResults     = false
-    recognition.lang               = 'en-US'
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript
-      handleSend(transcript)
-    }
-
-    recognition.onerror = () => setOrbState('idle')
-    recognition.onend   = () => {
-      if (orbStateRef.current === 'listening') setOrbState('idle')
-    }
-
-    recognition.start()
-    recognitionRef.current = recognition
-    setOrbState('listening')
+    startListening()
   }
 
   // ── Text fallback ────────────────────────────────────────────────────────────
@@ -205,6 +231,25 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
   }
 
   const selectedVoiceName = VOICES.find(v => v.id === selectedVoice)?.name ?? 'Sarah'
+
+  // ── Toggle button styles ─────────────────────────────────────────────────────
+  function toggleStyle(active: boolean) {
+    return {
+      background:   active ? 'rgba(157,224,157,0.12)' : 'transparent',
+      border:       `1px solid ${active ? 'rgba(157,224,157,0.3)' : 'rgba(240,237,224,0.12)'}`,
+      borderRadius: 50,
+      padding:      '4px 11px',
+      fontFamily:   "'DM Sans', sans-serif",
+      fontSize:     11,
+      color:        active ? '#9de09d' : 'rgba(240,237,224,0.3)',
+      cursor:       'pointer',
+      transition:   'all 0.2s',
+      letterSpacing: '0.03em',
+      display:      'flex',
+      alignItems:   'center',
+      gap:          5,
+    } as React.CSSProperties
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -221,6 +266,17 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
           fontSize: 22, fontWeight: 400, fontStyle: 'italic',
           color: '#f0ede0', margin: 0,
         }}>Nest</p>
+
+        {/* Voice + Auto toggles */}
+        <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+          <button onClick={() => setVoiceEnabled(v => !v)} style={toggleStyle(voiceEnabled)} title={voiceEnabled ? 'Mute voice' : 'Unmute voice'}>
+            {voiceEnabled ? '🔊' : '🔇'}
+            <span>{voiceEnabled ? 'Voice' : 'Muted'}</span>
+          </button>
+          <button onClick={() => setAutoListen(v => !v)} style={toggleStyle(autoListen)} title={autoListen ? 'Switch to manual tap' : 'Switch to auto-listen'}>
+            <span>Auto</span>
+          </button>
+        </div>
       </header>
 
       {/* ── Orb + controls ── */}
@@ -246,19 +302,21 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: 13, fontStyle: 'italic',
-          color: 'rgba(240,237,224,0.3)',
+          color: voiceEnabled ? 'rgba(240,237,224,0.3)' : 'rgba(240,237,224,0.15)',
           marginBottom: 14,
+          textDecoration: voiceEnabled ? 'none' : 'line-through',
         }}>
           {selectedVoiceName}
         </p>
 
         {/* Voice selector pills */}
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center', opacity: voiceEnabled ? 1 : 0.4, transition: 'opacity 0.2s' }}>
           {VOICES.map(v => (
             <button
               key={v.id}
               onClick={() => setSelectedVoice(v.id)}
               title={v.label}
+              disabled={!voiceEnabled}
               style={{
                 background:    selectedVoice === v.id ? 'rgba(240,237,224,0.14)' : 'transparent',
                 border:        `1px solid ${selectedVoice === v.id ? 'rgba(240,237,224,0.38)' : 'rgba(240,237,224,0.1)'}`,
@@ -267,7 +325,7 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
                 fontFamily:    "'DM Sans', sans-serif",
                 fontSize:      11,
                 color:         selectedVoice === v.id ? '#f0ede0' : 'rgba(240,237,224,0.38)',
-                cursor:        'pointer',
+                cursor:        voiceEnabled ? 'pointer' : 'default',
                 transition:    'all 0.2s',
                 letterSpacing: '0.03em',
               }}
