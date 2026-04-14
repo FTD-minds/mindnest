@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 Write a warm, personal 2-3 sentence response as Nest. Acknowledge how she's actually feeling today based on her inputs. Offer one specific, practical piece of support or encouragement. Close with something uplifting. Avoid clichés and generic advice.`
 
   const aiResult = await claude.messages.create({
-    model:      'claude-sonnet-4-6',
+    model:      'claude-haiku-4-5-20251001',
     max_tokens: 200,
     system:
       'You are Nest, a warm, non-judgmental AI wellness coach for first-time mothers. ' +

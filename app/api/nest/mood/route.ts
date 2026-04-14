@@ -50,7 +50,7 @@ Respond with ONLY valid JSON — no markdown, no explanation, no other text:
 
   try {
     const aiResult = await claude.messages.create({
-      model:      'claude-sonnet-4-6',
+      model:      'claude-haiku-4-5-20251001',
       max_tokens: 300,
       system:
         'You are Nest, a warm and non-judgmental AI wellness coach for parents. ' +
