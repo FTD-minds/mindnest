@@ -106,31 +106,37 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
       const nestMsg: ChatMessage = { role: 'assistant', content: nestText }
       setMessages(prev => [...prev, nestMsg])
 
-      // 2. Get ElevenLabs audio
-      const voiceRes = await fetch('/api/nest-voice', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text: nestText, voiceId: selectedVoice }),
-      })
-      if (!voiceRes.ok) throw new Error(`Voice API ${voiceRes.status}`)
+      // 2. Get ElevenLabs audio (truncate to 500 chars for voice; full text shown in transcript)
+      try {
+        const voiceText = nestText.slice(0, 500)
+        const voiceRes = await fetch('/api/nest-voice', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ text: voiceText, voiceId: selectedVoice }),
+        })
+        if (!voiceRes.ok) throw new Error(`Voice API ${voiceRes.status}`)
 
-      const blob = await voiceRes.blob()
-      const url  = URL.createObjectURL(blob)
+        const blob = await voiceRes.blob()
+        const url  = URL.createObjectURL(blob)
 
-      if (!audioRef.current) audioRef.current = new Audio()
-      audioRef.current.src = url
+        if (!audioRef.current) audioRef.current = new Audio()
+        audioRef.current.src = url
 
-      audioRef.current.onended = () => {
+        audioRef.current.onended = () => {
+          setOrbState('idle')
+          URL.revokeObjectURL(url)
+        }
+        audioRef.current.onerror = () => {
+          setOrbState('idle')
+          URL.revokeObjectURL(url)
+        }
+
+        setOrbState('speaking')
+        await audioRef.current.play()
+      } catch (voiceErr) {
+        console.error('[NestVoiceChat] voice error (silent)', voiceErr)
         setOrbState('idle')
-        URL.revokeObjectURL(url)
       }
-      audioRef.current.onerror = () => {
-        setOrbState('idle')
-        URL.revokeObjectURL(url)
-      }
-
-      setOrbState('speaking')
-      await audioRef.current.play()
     } catch (err) {
       console.error('[NestVoiceChat]', err)
       setError('Nest is unavailable right now. Please try again.')
