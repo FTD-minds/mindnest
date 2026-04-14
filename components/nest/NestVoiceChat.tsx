@@ -38,12 +38,12 @@ function buildInitialMessage(firstName: string, parentType: string | null): Chat
   if (parentType === 'expecting') {
     return {
       role:    'assistant',
-      content: `Hi ${firstName}! I'm Nest, your personal wellness coach. I'm here to support you through every week of your pregnancy and beyond. How are you feeling today?`,
+      content: `Hi ${firstName}! I'm Nest, your parenting companion.I'm here to support you through every week of your pregnancy and beyond. How are you feeling today?`,
     }
   }
   return {
     role:    'assistant',
-    content: `Hi ${firstName}! I'm Nest, your personal wellness coach. Every age. Every stage — I'm here for all of it. How are you and your little one doing today?`,
+    content: `Hi ${firstName}! I'm Nest, your parenting companion.Every age. Every stage — I'm here for all of it. How are you and your little one doing today?`,
   }
 }
 

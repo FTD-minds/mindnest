@@ -13,23 +13,23 @@ function buildInitialMessage(firstName: string, parentType: string | null): Chat
 
   if (parentType === 'expecting') {
     content =
-      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Hi ${firstName}! I'm Nest, your parenting companion.` +
       `I'm here to support you through every week of your pregnancy and beyond. ` +
       `How are you feeling today?`
   } else if (parentType === 'dad') {
     content =
-      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Hi ${firstName}! I'm Nest, your parenting companion.` +
       `Every age. Every stage — I'm here for all of it. ` +
       `How are you and your little one doing today?`
   } else if (parentType === 'partner') {
     content =
-      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Hi ${firstName}! I'm Nest, your parenting companion.` +
       `Every age. Every stage — I'm here for all of it. ` +
       `How are you and your little one doing today?`
   } else {
     // mom or unknown
     content =
-      `Hi ${firstName}! I'm Nest, your personal wellness coach. ` +
+      `Hi ${firstName}! I'm Nest, your parenting companion.` +
       `Every age. Every stage — I'm here for all of it. ` +
       `How are you and your little one doing today?`
   }
