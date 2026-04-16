@@ -1,25 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { claude } from '@/lib/claude'
+import { getAgeBand } from '@/lib/utils'
 
 const BRAIN_AREAS = ['Language', 'Motor', 'Social-Emotional', 'Cognitive', 'Sensory'] as const
 type BrainArea = typeof BRAIN_AREAS[number]
-
-interface AgeBand {
-  min: number
-  max: number
-  label: string
-}
-
-function getAgeBand(ageMonths: number): AgeBand {
-  if (ageMonths < 3)  return { min: 0,  max: 3,  label: '0–3 months'   }
-  if (ageMonths < 6)  return { min: 3,  max: 6,  label: '3–6 months'   }
-  if (ageMonths < 9)  return { min: 6,  max: 9,  label: '6–9 months'   }
-  if (ageMonths < 12) return { min: 9,  max: 12, label: '9–12 months'  }
-  if (ageMonths < 18) return { min: 12, max: 18, label: '12–18 months' }
-  if (ageMonths < 24) return { min: 18, max: 24, label: '18–24 months' }
-  return                     { min: 24, max: 36, label: '24–36 months' }
-}
 
 // Service-role client — bypasses RLS for inserts into daily_activities
 function createServiceClient() {

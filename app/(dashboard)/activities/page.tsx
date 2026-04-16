@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { BabySwitcher } from '@/components/dashboard/BabySwitcher'
+import { getAgeBand } from '@/lib/utils'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -10,16 +11,6 @@ function getAgeMonths(dateOfBirth: string): number {
     (now.getFullYear() - dob.getFullYear()) * 12 +
     (now.getMonth() - dob.getMonth())
   return Math.max(0, Math.min(36, months))
-}
-
-function getAgeBand(ageMonths: number) {
-  if (ageMonths < 3)  return { min: 0,  max: 3  }
-  if (ageMonths < 6)  return { min: 3,  max: 6  }
-  if (ageMonths < 9)  return { min: 6,  max: 9  }
-  if (ageMonths < 12) return { min: 9,  max: 12 }
-  if (ageMonths < 18) return { min: 12, max: 18 }
-  if (ageMonths < 24) return { min: 18, max: 24 }
-  return                     { min: 24, max: 36 }
 }
 
 export default async function ActivitiesPage() {
@@ -92,7 +83,25 @@ export default async function ActivitiesPage() {
   const ageMonths = getAgeMonths(baby.date_of_birth)
   const band = getAgeBand(ageMonths)
 
-  const { data: activities } = await supabase
+  const today = new Date().toISOString().split('T')[0]
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  // IDs completed by this baby in the last 7 days — exclude from feed
+  const { data: recentCompletions } = await supabase
+    .from('activity_completions')
+    .select('activity_id, completed_date')
+    .eq('user_id', user.id)
+    .eq('baby_id', baby.id)
+    .gte('completed_date', sevenDaysAgo)
+
+  const recentlyCompletedIds = recentCompletions?.map(c => c.activity_id) ?? []
+
+  // Today-only completions — used to show check marks on cards still in the feed
+  const completedTodayIds = recentCompletions
+    ?.filter(c => c.completed_date === today)
+    .map(c => c.activity_id) ?? []
+
+  const activitiesQuery = supabase
     .from('daily_activities')
     .select('*')
     .eq('min_age_months', band.min)
@@ -100,15 +109,11 @@ export default async function ActivitiesPage() {
     .eq('is_active', true)
     .order('created_at', { ascending: true })
 
-  const today = new Date().toISOString().split('T')[0]
-  const { data: completions } = await supabase
-    .from('activity_completions')
-    .select('activity_id')
-    .eq('user_id', user.id)
-    .eq('baby_id', baby.id)
-    .eq('completed_date', today)
+  if (recentlyCompletedIds.length > 0) {
+    activitiesQuery.not('id', 'in', `(${recentlyCompletedIds.join(',')})`)
+  }
 
-  const completedToday = completions?.map(c => c.activity_id) ?? []
+  const { data: activities } = await activitiesQuery
 
   const ageLabel =
     ageMonths < 12
@@ -137,7 +142,7 @@ export default async function ActivitiesPage() {
         babyId={baby.id}
         babyAgeMonths={ageMonths}
         isPremiumUser={isPremiumUser ?? false}
-        completedToday={completedToday}
+        completedToday={completedTodayIds}
       />
     </div>
   )
