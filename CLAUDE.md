@@ -1,4 +1,4 @@
-# MindNest — Claude Code Project Context
+# MindNest app — Claude Code Project Context
 
 ## Project Overview
 MindNest is an AI-powered parenting companion app for new parents. It combines
@@ -212,6 +212,64 @@ npm run lint         # ESLint
 - API routes are all in `app/api/` — no logic in page components
 - Tailwind only for styling — no CSS modules, no inline styles
 - Framer Motion for animations — keep them subtle and purposeful
+
+---
+
+## Product Vision & Principles
+- AI-powered parenting companion for 0-36 months, extending to 8 years
+- Nest AI personality: warm trusted friend with a PhD — practical, evidence-based, reassuring
+- Never diagnose. Always refer. Always empower.
+- Every feature makes parents feel empowered not overwhelmed
+- Science-backed but explained in simple warm language
+- Mobile first design always
+- All AI responses must be warm, science-backed, and non-judgmental
+
+---
+
+## Monetization
+- Free tier: limited Nest messages per month
+- Premium: $9.99/month unlimited Nest + all features
+- Annual: $59.99/year
+- Lifetime: $149.99 one time
+- Target acquirers: Pampers, Johnson & Johnson, BabyCenter, edtech companies
+- Build as an asset — clean code, documented systems, growing user base with retention data
+
+---
+
+## MCP Stack & When To Use
+- Supabase MCP → database queries, schema changes, migrations
+- GitHub MCP → commits, pushes, file management
+- Stripe MCP → payment and subscription queries
+- ElevenLabs MCP → voice testing during development
+- Tavily → web search for current documentation
+- Context7 → pull latest library docs before building
+- Playwright → browser testing and automation
+
+---
+
+## Skills & When To Use
+- /mnt/skills/public/frontend-design/SKILL.md → ALWAYS read before building any UI component, page, or visual element
+- /mnt/skills/public/docx/SKILL.md → read before creating any Word documents
+- /mnt/skills/public/pptx/SKILL.md → read before creating any presentations
+- /mnt/skills/public/pdf/SKILL.md → read before creating any PDFs
+- /mnt/skills/public/xlsx/SKILL.md → read before creating any spreadsheets
+- Rule: Always read the relevant SKILL.md BEFORE writing any code for that output type
+
+---
+
+## Custom Skills Built (13 Total)
+Content & Marketing: /viral, /script, /content-director, /cmo, /repurpose, /analyze-creator, /copy
+Business Development: /scraper, /head-of-development, /sdr
+Operations: /coo, /head-of-strategy, /skill-creator
+All skills available in Claude Code via /command syntax
+
+---
+
+## Important Notes
+- Lovable.dev was removed from the build plan — do not use or reference it
+- Two-file rule is non-negotiable: MindNestLanding.tsx and mindnest-preview.html always updated together
+- Always run Claude Code from ~/Desktop/BRAINS.ai/mindnest-app
+- Run /head-of-strategy and /cmo before writing any major new feature
 
 ---
 
