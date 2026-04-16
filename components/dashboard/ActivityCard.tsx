@@ -11,6 +11,7 @@ interface ActivityCardProps {
   isCompleted?: boolean
   existingRating?: number | null
   onComplete: (activityId: string, rating: number) => Promise<void>
+  hideComplete?: boolean   // true for prenatal activities — no baby_id to track against
 }
 
 export function ActivityCard({
@@ -19,6 +20,7 @@ export function ActivityCard({
   isCompleted = false,
   existingRating = null,
   onComplete,
+  hideComplete = false,
 }: ActivityCardProps) {
   const [showInstructions, setShowInstructions] = useState(false)
   const [rating, setRating]                     = useState<number>(existingRating ?? 0)
@@ -59,7 +61,7 @@ export function ActivityCard({
               <span className="ml-3 text-warm-500">Premium</span>
             )}
           </p>
-          {done && (
+          {done && !hideComplete && (
             <span className="w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
               <CheckIcon size={11} className="text-brand-600" />
             </span>
@@ -103,8 +105,8 @@ export function ActivityCard({
           </div>
         )}
 
-        {/* Star rating — post-completion only */}
-        {done && (
+        {/* Star rating — post-completion only, not shown for prenatal activities */}
+        {done && !hideComplete && (
           <div className="flex items-center gap-1 mb-4">
             <span className="text-[10px] uppercase tracking-wider text-sage-400 mr-2">Rate</span>
             {[1, 2, 3, 4, 5].map(star => (
@@ -128,8 +130,8 @@ export function ActivityCard({
           </div>
         )}
 
-        {/* Complete button */}
-        {!done && (
+        {/* Complete button — hidden for prenatal activities */}
+        {!done && !hideComplete && (
           <button
             onClick={handleComplete}
             disabled={isLocked || completing}

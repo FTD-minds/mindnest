@@ -13,6 +13,12 @@ function getAgeMonths(dateOfBirth: string): number {
   return Math.max(0, Math.min(36, months))
 }
 
+function getTrimester(week: number | null): 1 | 2 | 3 {
+  if (!week || week <= 13) return 1
+  if (week <= 26)          return 2
+  return 3
+}
+
 export default async function ActivitiesPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,25 +33,16 @@ export default async function ActivitiesPage() {
     )
   }
 
-  // Profile for selected_baby_id
+  // Profile — need parent_type and pregnancy_week in addition to selected_baby_id
   const { data: profile } = await supabase
     .from('profiles')
-    .select('selected_baby_id')
+    .select('selected_baby_id, parent_type, pregnancy_week')
     .eq('id', user.id)
     .single()
 
-  // All babies for switcher
-  const { data: babies } = await supabase
-    .from('babies')
-    .select('id, name, date_of_birth')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true })
+  const isExpecting = profile?.parent_type === 'expecting'
 
-  const allBabies = babies ?? []
-  const selectedId = profile?.selected_baby_id ?? allBabies[0]?.id ?? null
-  const baby = allBabies.find(b => b.id === selectedId) ?? allBabies[0] ?? null
-
-  // Subscription
+  // ── Subscription (needed for both paths) ────────────────────────────────────
   const { data: sub } = await supabase
     .from('subscriptions')
     .select('status, plan')
@@ -54,6 +51,57 @@ export default async function ActivitiesPage() {
 
   const isPremiumUser =
     sub?.status === 'active' || sub?.status === 'trialing' || sub?.plan === 'lifetime'
+
+  // ── EXPECTING PATH ───────────────────────────────────────────────────────────
+  if (isExpecting) {
+    const pregnancyWeek = profile?.pregnancy_week ?? null
+    const trimester     = getTrimester(pregnancyWeek)
+
+    const { data: prenatalActivities } = await supabase
+      .from('daily_activities')
+      .select('*')
+      .eq('content_type', 'prenatal')
+      .eq('trimester', trimester)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+
+    const trimesterLabel = ['First', 'Second', 'Third'][trimester - 1]
+    const weekLabel      = pregnancyWeek ? `Week ${pregnancyWeek}` : `${trimesterLabel} Trimester`
+
+    return (
+      <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
+        <header className="mb-8">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">For You</p>
+          <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">
+            {weekLabel} — Activities for You
+          </h1>
+          <p className="text-sm text-sage-400 mt-2">
+            {trimesterLabel} trimester · curated for where you are right now
+          </p>
+        </header>
+
+        <ActivityFeed
+          initialActivities={prenatalActivities ?? []}
+          trimester={trimester}
+          isPremiumUser={isPremiumUser ?? false}
+          completedToday={[]}
+        />
+      </div>
+    )
+  }
+
+  // ── BABY ACTIVITY PATH ───────────────────────────────────────────────────────
+
+  // All babies for switcher
+  const { data: babies } = await supabase
+    .from('babies')
+    .select('id, name, date_of_birth')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+
+  const allBabies  = babies ?? []
+  const selectedId = profile?.selected_baby_id ?? allBabies[0]?.id ?? null
+  const baby       = allBabies.find(b => b.id === selectedId) ?? allBabies[0] ?? null
 
   if (!baby) {
     return (
@@ -80,10 +128,10 @@ export default async function ActivitiesPage() {
     )
   }
 
-  const ageMonths = getAgeMonths(baby.date_of_birth)
-  const band = getAgeBand(ageMonths)
+  const ageMonths  = getAgeMonths(baby.date_of_birth)
+  const band       = getAgeBand(ageMonths)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today      = new Date().toISOString().split('T')[0]
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   // IDs completed by this baby in the last 7 days — exclude from feed
@@ -104,6 +152,7 @@ export default async function ActivitiesPage() {
   const activitiesQuery = supabase
     .from('daily_activities')
     .select('*')
+    .eq('content_type', 'baby')
     .eq('min_age_months', band.min)
     .eq('max_age_months', band.max)
     .eq('is_active', true)

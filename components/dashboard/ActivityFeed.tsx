@@ -6,10 +6,11 @@ import type { Activity } from '@/types'
 
 interface ActivityFeedProps {
   initialActivities: Activity[]
-  babyId:            string
-  babyAgeMonths:     number
+  babyId?:           string     // absent for prenatal mode — completion tracking skipped
+  babyAgeMonths?:    number     // absent for prenatal mode
+  trimester?:        1 | 2 | 3  // present for prenatal mode
   isPremiumUser:     boolean
-  completedToday:    string[]   // activity IDs completed today
+  completedToday:    string[]   // activity IDs completed today (empty for prenatal)
   limit?:            number     // if set, show only N activities (dashboard preview)
 }
 
@@ -17,20 +18,25 @@ export function ActivityFeed({
   initialActivities,
   babyId,
   babyAgeMonths,
+  trimester,
   isPremiumUser,
   completedToday,
   limit,
 }: ActivityFeedProps) {
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
 
-  // Background check: if fewer than 20 activities exist for this age band,
+  // Background check: if fewer than 20 activities exist for this context,
   // call the generate API to fill the gap. Fire-and-forget on mount.
   useEffect(() => {
     if (activities.length < 20) {
+      const body = trimester != null
+        ? { trimester }
+        : { ageMonths: babyAgeMonths }
+
       fetch('/api/activities/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ageMonths: babyAgeMonths }),
+        body:    JSON.stringify(body),
       })
         .then(r => r.json())
         .then(data => {
@@ -43,6 +49,7 @@ export function ActivityFeed({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleComplete(activityId: string, rating: number) {
+    if (!babyId) return  // prenatal mode — no completion tracking
     await fetch('/api/activities/complete', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -59,7 +66,9 @@ export function ActivityFeed({
           Loading activities…
         </p>
         <p className="text-xs text-sage-400">
-          Nest is finding the best activities for your baby's age.
+          {trimester != null
+            ? 'Nest is finding activities for your trimester.'
+            : 'Nest is finding the best activities for your baby\'s age.'}
         </p>
       </div>
     )
@@ -74,6 +83,7 @@ export function ActivityFeed({
           isPremiumUser={isPremiumUser}
           isCompleted={completedToday.includes(activity.id)}
           onComplete={handleComplete}
+          hideComplete={!babyId}
         />
       ))}
     </div>
