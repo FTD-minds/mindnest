@@ -70,7 +70,7 @@ export function AddBabyForm({ existingBabies }: AddBabyFormProps) {
 
   const today   = new Date().toISOString().split('T')[0]
   const minDate = new Date()
-  minDate.setMonth(minDate.getMonth() - 36)
+  minDate.setMonth(minDate.getMonth() - 48)
   const minDob  = minDate.toISOString().split('T')[0]
 
   return (

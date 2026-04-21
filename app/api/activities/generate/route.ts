@@ -255,9 +255,9 @@ export async function POST(request: Request) {
   }
 
   const ageMonths = Number(body.ageMonths)
-  if (isNaN(ageMonths) || ageMonths < 0 || ageMonths > 36) {
+  if (isNaN(ageMonths) || ageMonths < 0 || ageMonths > 48) {
     return NextResponse.json(
-      { error: 'Provide either trimester (1–3) or ageMonths (0–36)' },
+      { error: 'Provide either trimester (1–3) or ageMonths (0–48)' },
       { status: 400 }
     )
   }

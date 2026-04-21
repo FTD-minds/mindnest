@@ -19,5 +19,7 @@ export function getAgeBand(ageMonths: number): AgeBand {
   if (ageMonths < 12) return { min: 9,  max: 12, label: '9–12 months'  }
   if (ageMonths < 18) return { min: 12, max: 18, label: '12–18 months' }
   if (ageMonths < 24) return { min: 18, max: 24, label: '18–24 months' }
-  return                     { min: 24, max: 36, label: '24–36 months' }
+  if (ageMonths < 36) return { min: 24, max: 36, label: '24–36 months' }
+  if (ageMonths < 42) return { min: 36, max: 42, label: '36–42 months' }
+  return                     { min: 42, max: 48, label: '42–48 months' }
 }

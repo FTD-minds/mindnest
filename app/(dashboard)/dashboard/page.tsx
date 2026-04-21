@@ -10,7 +10,7 @@ function getAgeMonths(dateOfBirth: string): number {
   const months =
     (now.getFullYear() - dob.getFullYear()) * 12 +
     (now.getMonth() - dob.getMonth())
-  return Math.max(0, Math.min(36, months))
+  return Math.max(0, Math.min(48, months))
 }
 
 function getAgeBand(ageMonths: number) {
@@ -20,7 +20,9 @@ function getAgeBand(ageMonths: number) {
   if (ageMonths < 12) return { min: 9,  max: 12 }
   if (ageMonths < 18) return { min: 12, max: 18 }
   if (ageMonths < 24) return { min: 18, max: 24 }
-  return                     { min: 24, max: 36 }
+  if (ageMonths < 36) return { min: 24, max: 36 }
+  if (ageMonths < 42) return { min: 36, max: 42 }
+  return                     { min: 42, max: 48 }
 }
 
 function todayLabel() {

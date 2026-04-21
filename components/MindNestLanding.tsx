@@ -359,7 +359,7 @@ export default function MindNestLanding() {
             style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}>
-            AI Parenting Companion · 0–36 Months
+            AI Parenting Companion · 0–4 Years
           </motion.div>
 
           <motion.div className="h-title"
@@ -440,7 +440,7 @@ export default function MindNestLanding() {
             <div className="pill">3 Months</div>
             <div className="pill">6 Months</div>
             <div className="pill">12 Months</div>
-            <div className="pill">36 Months</div>
+            <div className="pill">48 Months</div>
           </div>
         </div>
       </div>
@@ -498,7 +498,7 @@ export default function MindNestLanding() {
             Your journey <em style={{ color: '#9dd884' }}>starts now.</em>
           </div>
           <div className="s5-body s-body" style={{ color: '#8aaa78', marginBottom: 8, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
-            Join thousands of parents navigating the 0 to 36 month adventure with confidence, clarity, and calm.
+            Join thousands of parents navigating the 0 to 4 year adventure with confidence, clarity, and calm.
           </div>
           <div className="s5-cta">
             <button className="s5-cta-btn" id="s5Btn" onClick={handleS5Click} style={{ background: '#f0ede0', color: '#1c2e1c' }}>

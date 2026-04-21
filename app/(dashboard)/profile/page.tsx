@@ -8,7 +8,7 @@ function getAgeMonths(dateOfBirth: string): number {
   const months =
     (now.getFullYear() - dob.getFullYear()) * 12 +
     (now.getMonth() - dob.getMonth())
-  return Math.max(0, Math.min(36, months))
+  return Math.max(0, Math.min(48, months))
 }
 
 function ageLabel(months: number): string {
