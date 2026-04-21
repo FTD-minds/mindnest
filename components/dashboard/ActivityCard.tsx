@@ -81,8 +81,12 @@ export function ActivityCard({
         {/* Meta data */}
         <div className="flex gap-4 text-[11px] text-sage-400 mb-4">
           <span>{activity.duration_min} min</span>
-          <span className="text-sage-200">/</span>
-          <span>{activity.min_age_months}–{activity.max_age_months} months</span>
+          {(activity.min_age_months !== 0 || activity.max_age_months !== 0) && (
+            <>
+              <span className="text-sage-200">/</span>
+              <span>{activity.min_age_months}–{activity.max_age_months} months</span>
+            </>
+          )}
           {activity.materials_needed.length > 0 && (
             <>
               <span className="text-sage-200">/</span>
