@@ -358,6 +358,8 @@ function buildContextBlock(
   return lines.join('\n')
 }
 
+import { embedText } from '@/lib/voyage'
+
 export async function POST(request: Request) {
   // ── Auth ──────────────────────────────────────────────────────────────────
   const supabase = createServerClient()
@@ -423,12 +425,51 @@ export async function POST(request: Request) {
     )
   }
 
+  // ── Parse request body ────────────────────────────────────────────────────
+  const { messages } = await request.json()
+
+  // ── RAG — retrieve relevant knowledge snippets ────────────────────────────
+  // Take the user's latest message, embed it, and find matching documents.
+  // Silently skip if the knowledge base is empty or Voyage call fails.
+  let ragSnippets: Array<{ title: string; content: string; source: string }> = []
+
+  const latestUserMessage = [...messages].reverse().find(
+    (m: { role: string; content: string }) => m.role === 'user'
+  )?.content ?? ''
+
+  if (latestUserMessage) {
+    try {
+      const queryEmbedding = await embedText(latestUserMessage)
+
+      const { data: ragResults } = await supabase.rpc('match_knowledge_documents', {
+        query_embedding: JSON.stringify(queryEmbedding),
+        match_count:     3,
+      })
+
+      if (ragResults && ragResults.length > 0) {
+        ragSnippets = (ragResults as Array<{ title: string; content: string; source: string; similarity: number }>)
+          .filter(r => r.similarity > 0.5) // only include genuinely relevant results
+          .map(r => ({ title: r.title, content: r.content, source: r.source }))
+      }
+    } catch (err) {
+      // Non-fatal — Nest still works without RAG context
+      console.warn('[Nest RAG] Knowledge search failed, proceeding without context:', err)
+    }
+  }
+
   // ── Build system prompt ───────────────────────────────────────────────────
   const contextBlock  = buildContextBlock(firstName, parentType, pregnancyWeek, babyName, babyAgeMonths, flaggedMilestones)
-  const systemPrompt  = `${contextBlock}\n\n---\n\n${NEST_SYSTEM_PROMPT}`
 
-  // ── Call Claude ───────────────────────────────────────────────────────────
-  const { messages } = await request.json()
+  const ragBlock = ragSnippets.length > 0
+    ? [
+        '\n\n---\n\n## Relevant research (retrieved from knowledge base — weave in naturally, do not quote verbatim or cite inline)',
+        ...ragSnippets.map(r =>
+          `**${r.title}** (${r.source})\n${r.content.slice(0, 300)}${r.content.length > 300 ? '…' : ''}`
+        ),
+      ].join('\n\n')
+    : ''
+
+  const systemPrompt  = `${contextBlock}${ragBlock}\n\n---\n\n${NEST_SYSTEM_PROMPT}`
 
   let response
   try {
