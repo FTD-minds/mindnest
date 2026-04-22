@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { MilestoneCard } from '@/components/milestones/MilestoneCard'
 import { BabySwitcher } from '@/components/dashboard/BabySwitcher'
+import { FlaggedMilestonesPanel } from '@/components/milestones/FlaggedMilestonesPanel'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob = new Date(dateOfBirth)
@@ -92,6 +93,30 @@ export default async function MilestonesPage() {
     .eq('baby_id', activeBaby.id)
 
   const notedIds = new Set((completions ?? []).map(c => c.milestone_id))
+
+  // Fetch potentially missed milestones — only when baby is older than 6 months
+  // (avoids false alarms for newborns). Flagged = age_months < (ageMonths - 2) AND not noted AND not dismissed.
+  let flaggedMilestones: Array<{ id: string; milestone_title: string; brain_area: string }> = []
+
+  if (ageMonths > 6) {
+    const [{ data: pastMilestones }, { data: dismissals }] = await Promise.all([
+      supabase
+        .from('developmental_milestones')
+        .select('id, milestone_title, brain_area')
+        .lt('age_months', ageMonths - 2)
+        .order('brain_area', { ascending: true }),
+      supabase
+        .from('milestone_dismissals')
+        .select('milestone_id')
+        .eq('baby_id', activeBaby.id),
+    ])
+
+    const dismissedIds = new Set((dismissals ?? []).map(d => d.milestone_id))
+
+    flaggedMilestones = (pastMilestones ?? []).filter(
+      m => !notedIds.has(m.id) && !dismissedIds.has(m.id)
+    )
+  }
 
   // Split into sections
   const emerging   = allMilestones.filter(m => m.age_months <= ageMonths + 1)
@@ -193,6 +218,14 @@ export default async function MilestonesPage() {
         <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-8 text-center">
           <p className="text-sm text-sage-500">No milestones found for this age range.</p>
         </div>
+      )}
+
+      {/* ── Worth a closer look ──────────────────────────────────────── */}
+      {flaggedMilestones.length > 0 && (
+        <FlaggedMilestonesPanel
+          milestones={flaggedMilestones}
+          babyId={activeBaby.id}
+        />
       )}
 
       {/* ── Reassurance footer ───────────────────────────────────────── */}

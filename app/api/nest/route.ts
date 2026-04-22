@@ -300,6 +300,7 @@ function buildContextBlock(
   pregnancyWeek: number | null,
   babyName: string | null,
   babyAgeMonths: number | null,
+  flaggedMilestones: Array<{ milestone_title: string; brain_area: string }> | null,
 ): string {
   const lines: string[] = [
     '## About this user (injected context — use naturally, never recite back)',
@@ -343,6 +344,15 @@ function buildContextBlock(
     } else if (parentType === 'partner') {
       lines.push(`- This user identifies as a partner — address them as ${firstName}, never "mama"`)
     }
+
+    if (flaggedMilestones && flaggedMilestones.length > 0) {
+      lines.push(
+        '',
+        '## Milestones worth a closer look',
+        `The following milestones for ${babyName ?? 'this baby'} have not been noted yet and may be worth a closer look. Use this context only if it naturally fits the conversation — never lead with it, never alarm the parent, and never use words like "delayed", "behind", or "problem". Frame gently as "worth mentioning to your pediatrician" if it comes up:`,
+        ...flaggedMilestones.map(m => `- [${m.brain_area}] ${m.milestone_title}`),
+      )
+    }
   }
 
   return lines.join('\n')
@@ -381,8 +391,40 @@ export async function POST(request: Request) {
   const babyName    = baby?.name ?? null
   const babyAgeMonths = baby?.date_of_birth ? getAgeMonths(baby.date_of_birth) : null
 
+  // ── Flagged milestones context ────────────────────────────────────────────
+  // Only query when baby is older than 6 months — avoids false alarms for newborns.
+  let flaggedMilestones: Array<{ milestone_title: string; brain_area: string }> | null = null
+
+  if (baby && babyAgeMonths !== null && babyAgeMonths > 6 && parentType !== 'expecting') {
+    const [
+      { data: pastMilestones },
+      { data: completionRows },
+      { data: dismissalRows },
+    ] = await Promise.all([
+      supabase
+        .from('developmental_milestones')
+        .select('id, milestone_title, brain_area')
+        .lt('age_months', babyAgeMonths - 2),
+      supabase
+        .from('milestone_completions')
+        .select('milestone_id')
+        .eq('baby_id', baby.id),
+      supabase
+        .from('milestone_dismissals')
+        .select('milestone_id')
+        .eq('baby_id', baby.id),
+    ])
+
+    const notedSet    = new Set((completionRows ?? []).map(c => c.milestone_id))
+    const dismissedSet = new Set((dismissalRows  ?? []).map(d => d.milestone_id))
+
+    flaggedMilestones = (pastMilestones ?? []).filter(
+      m => !notedSet.has(m.id) && !dismissedSet.has(m.id)
+    )
+  }
+
   // ── Build system prompt ───────────────────────────────────────────────────
-  const contextBlock  = buildContextBlock(firstName, parentType, pregnancyWeek, babyName, babyAgeMonths)
+  const contextBlock  = buildContextBlock(firstName, parentType, pregnancyWeek, babyName, babyAgeMonths, flaggedMilestones)
   const systemPrompt  = `${contextBlock}\n\n---\n\n${NEST_SYSTEM_PROMPT}`
 
   // ── Call Claude ───────────────────────────────────────────────────────────
