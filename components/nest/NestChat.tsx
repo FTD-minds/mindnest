@@ -1,22 +1,58 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useNestChat } from '@/hooks/useNestChat'
 import { NestMessage } from './NestMessage'
 import { NestInput } from './NestInput'
 
 interface NestChatProps {
-  firstName?: string
-  parentType?: string | null
+  firstName?:           string
+  parentType?:          string | null
+  initialMessagesUsed?: number
+  messageLimit?:        number
+  isPremium?:           boolean
+  userId?:              string
+  email?:               string
 }
 
-export function NestChat({ firstName = 'there', parentType = null }: NestChatProps) {
-  const { messages, sendMessage, isLoading, error } = useNestChat({ firstName, parentType })
-  const bottomRef = useRef<HTMLDivElement>(null)
+export function NestChat({
+  firstName           = 'there',
+  parentType          = null,
+  initialMessagesUsed = 0,
+  messageLimit        = 20,
+  isPremium           = false,
+  userId              = '',
+  email               = '',
+}: NestChatProps) {
+  const { messages, sendMessage, isLoading, error, limitReached, messagesUsed } = useNestChat({
+    firstName,
+    parentType,
+    initialMessagesUsed,
+    messageLimit,
+    isPremium,
+  })
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isLoading])
+  const [upgradePending, setUpgradePending] = useState(false)
+
+  const handleUpgrade = async () => {
+    setUpgradePending(true)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ plan: 'monthly', userId, email }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch {
+      // silent
+    } finally {
+      setUpgradePending(false)
+    }
+  }
+
+  const nearLimit    = !isPremium && messagesUsed >= messageLimit - 4
+  const usagePercent = Math.min(100, (messagesUsed / messageLimit) * 100)
 
   return (
     <div className="flex flex-col h-full bg-sage-50">
@@ -29,7 +65,7 @@ export function NestChat({ firstName = 'there', parentType = null }: NestChatPro
         <div>
           <p className="font-display text-lg italic text-brand-900 leading-none">Nest</p>
           <p className="text-[10px] uppercase tracking-[0.18em] text-sage-400 mt-1">
-            Wellness Coach
+            Parenting Companion
           </p>
         </div>
         {isLoading && (
@@ -64,13 +100,54 @@ export function NestChat({ firstName = 'there', parentType = null }: NestChatPro
         {error && (
           <p className="text-center text-[11px] text-sage-400 py-2">{error}</p>
         )}
-
-        <div ref={bottomRef} />
       </div>
+
+      {/* ── Limit reached banner ────────────────────────────────── */}
+      {limitReached && (
+        <div className="flex-shrink-0 mx-4 mb-3 bg-warm-50 border border-warm-200 rounded-2xl px-5 py-4 text-center">
+          <p className="font-display italic text-brand-900 text-base leading-snug mb-1">
+            You&apos;ve used all {messageLimit} of your free messages this month.
+          </p>
+          <p className="text-[12px] text-sage-500 mb-3 leading-relaxed">
+            Upgrade to keep the conversation going — unlimited Nest, all features included.
+          </p>
+          <button
+            onClick={handleUpgrade}
+            disabled={upgradePending}
+            className="bg-[#1c2e1c] text-white text-[12px] tracking-wide rounded-full px-6 py-2.5 hover:bg-[#2d4a2d] transition-colors disabled:opacity-50"
+          >
+            {upgradePending ? 'Redirecting…' : 'Upgrade to Premium'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Usage counter (free users only) ─────────────────────── */}
+      {!isPremium && !limitReached && (
+        <div className="flex-shrink-0 px-4 pb-1">
+          <div className="h-[2px] bg-sage-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width:      `${usagePercent}%`,
+                background: nearLimit ? '#e88c6c' : '#6fa86f',
+                opacity:    nearLimit ? 0.7 : 0.4,
+              }}
+            />
+          </div>
+          <p className={`text-right text-[10px] mt-1 ${nearLimit ? 'text-orange-400' : 'text-sage-300'}`}>
+            {messagesUsed} of {messageLimit} free messages this month
+          </p>
+        </div>
+      )}
 
       {/* ── Input ──────────────────────────────────────────────── */}
       <div className="flex-shrink-0">
-        <NestInput onSend={sendMessage} isLoading={isLoading} />
+        <NestInput
+          onSend={sendMessage}
+          isLoading={isLoading}
+          disabled={limitReached}
+          placeholder={limitReached ? 'Upgrade to continue…' : undefined}
+        />
       </div>
     </div>
   )

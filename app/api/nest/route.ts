@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { claude } from '@/lib/claude'
 import { createServerClient } from '@/lib/supabase/server'
 
+const FREE_TIER_LIMIT = 20
+
 const NEST_SYSTEM_PROMPT = `You communicate through voice — you can speak your responses aloud. When users ask you to read something or speak, simply respond naturally as if continuing the conversation. Never tell users you cannot speak or that you are text-only.
 
 You are Nest — the AI heart of MindNest, a wellness and development app for first-time mothers with children aged 0–48 months (0–4 years).
@@ -369,11 +371,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // ── User context ──────────────────────────────────────────────────────────
-  const [{ data: profile }, { data: babies }] = await Promise.all([
+  // ── User context + limit check data ──────────────────────────────────────
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+
+  const [
+    { data: profile },
+    { data: babies },
+    { data: subscription },
+    { count: usageCount },
+  ] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, parent_type, pregnancy_week, selected_baby_id')
+      .select('full_name, parent_type, pregnancy_week, selected_baby_id, beta_access')
       .eq('id', user.id)
       .single(),
     supabase
@@ -381,7 +392,29 @@ export async function POST(request: Request) {
       .select('id, name, date_of_birth')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true }),
+    supabase
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', user.id)
+      .single(),
+    supabase
+      .from('nest_usage_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', startOfMonth.toISOString()),
   ])
+
+  // ── Message limit enforcement ─────────────────────────────────────────────
+  const isPremium     = ['active', 'trialing'].includes(subscription?.status ?? '')
+  const hasBetaAccess = profile?.beta_access ?? false
+  const messagesUsed  = usageCount ?? 0
+
+  if (!isPremium && !hasBetaAccess && messagesUsed >= FREE_TIER_LIMIT) {
+    return NextResponse.json(
+      { error: 'limit_reached', messagesUsed, limit: FREE_TIER_LIMIT },
+      { status: 403 }
+    )
+  }
 
   const firstName     = profile?.full_name?.split(' ')[0] ?? 'there'
   const parentType    = profile?.parent_type ?? null
@@ -470,6 +503,9 @@ export async function POST(request: Request) {
     : ''
 
   const systemPrompt  = `${contextBlock}${ragBlock}\n\n---\n\n${NEST_SYSTEM_PROMPT}`
+
+  // ── Log usage (after limit check passes, before Claude call) ─────────────
+  await supabase.from('nest_usage_logs').insert({ user_id: user.id })
 
   let response
   try {

@@ -8,13 +8,13 @@ import type { ChatMessage } from '@/types'
 function stripMarkdown(text: string): string {
   return text
     .split('\n')
-    .filter(line => !/^#{1,6}\s/.test(line))         // remove ## headings
-    .filter(line => !/^[\-\*]\s/.test(line.trimStart())) // remove bullet lines
+    .filter(line => !/^#{1,6}\s/.test(line))
+    .filter(line => !/^[\-\*]\s/.test(line.trimStart()))
     .join('\n')
-    .replace(/\*\*(.+?)\*\*/g, '$1')                 // **bold**
-    .replace(/\*(.+?)\*/g, '$1')                      // *italic*
-    .replace(/`(.+?)`/g, '$1')                        // `code`
-    .replace(/\n{3,}/g, '\n\n')                       // collapse excess newlines
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 
@@ -49,30 +49,46 @@ function buildInitialMessage(firstName: string, parentType: string | null): Chat
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface NestVoiceChatProps {
-  firstName?:  string
-  parentType?: string | null
+  firstName?:    string
+  parentType?:   string | null
+  messagesUsed?: number
+  messageLimit?: number
+  isPremium?:    boolean
+  userId?:       string
+  email?:        string
 }
 
-export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVoiceChatProps) {
-  const [orbState,      setOrbState]      = useState<OrbState>('idle')
-  const [selectedVoice, setSelectedVoice] = useState(VOICES[0].id)
-  const [messages,      setMessages]      = useState<ChatMessage[]>(() => [buildInitialMessage(firstName, parentType)])
-  const [textInput,     setTextInput]     = useState('')
-  const [error,         setError]         = useState<string | null>(null)
-  const [voiceEnabled,  setVoiceEnabled]  = useState(true)
-  const [autoListen,    setAutoListen]    = useState(true)
+export function NestVoiceChat({
+  firstName    = 'there',
+  parentType   = null,
+  messagesUsed = 0,
+  messageLimit = 20,
+  isPremium    = false,
+  userId       = '',
+  email        = '',
+}: NestVoiceChatProps) {
+  const [orbState,           setOrbState]           = useState<OrbState>('idle')
+  const [selectedVoice,      setSelectedVoice]      = useState(VOICES[0].id)
+  const [messages,           setMessages]           = useState<ChatMessage[]>(() => [buildInitialMessage(firstName, parentType)])
+  const [textInput,          setTextInput]          = useState('')
+  const [error,              setError]              = useState<string | null>(null)
+  const [voiceEnabled,       setVoiceEnabled]       = useState(true)
+  const [autoListen,         setAutoListen]         = useState(true)
+  const [limitReached,       setLimitReached]       = useState(false)
+  const [localMessagesUsed,  setLocalMessagesUsed]  = useState(messagesUsed)
+  const [upgradePending,     setUpgradePending]     = useState(false)
 
-  const audioRef       = useRef<HTMLAudioElement | null>(null)
+  const audioRef        = useRef<HTMLAudioElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null)
-  const transcriptRef  = useRef<HTMLDivElement>(null)
-  const orbStateRef    = useRef<OrbState>('idle')
-  const autoListenRef  = useRef(true)
+  const recognitionRef  = useRef<any>(null)
+  const transcriptRef   = useRef<HTMLDivElement>(null)
+  const orbStateRef     = useRef<OrbState>('idle')
+  const autoListenRef   = useRef(true)
   const voiceEnabledRef = useRef(true)
 
   // Keep refs in sync so event handlers see current values
-  useEffect(() => { orbStateRef.current = orbState }, [orbState])
-  useEffect(() => { autoListenRef.current = autoListen }, [autoListen])
+  useEffect(() => { orbStateRef.current = orbState },         [orbState])
+  useEffect(() => { autoListenRef.current = autoListen },     [autoListen])
   useEffect(() => { voiceEnabledRef.current = voiceEnabled }, [voiceEnabled])
 
   // Auto-scroll transcript
@@ -87,6 +103,24 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
       if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = '' }
     }
   }, [])
+
+  // ── Upgrade handler ───────────────────────────────────────────────────────
+  const handleUpgrade = useCallback(async () => {
+    setUpgradePending(true)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ plan: 'monthly', userId, email }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch {
+      // silent — user stays on page
+    } finally {
+      setUpgradePending(false)
+    }
+  }, [userId, email])
 
   // ── Start listening (shared between manual tap and auto-listen) ───────────────
   const startListening = useCallback(() => {
@@ -136,9 +170,23 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ messages: nextMessages }),
       })
+
+      // Handle monthly limit before generic error check
+      if (nestRes.status === 403) {
+        const data = await nestRes.json()
+        if (data.error === 'limit_reached') {
+          setLimitReached(true)
+          setLocalMessagesUsed(data.messagesUsed as number)
+          setMessages(prev => prev.slice(0, -1)) // remove unsent user message
+          setOrbState('idle')
+          return
+        }
+      }
+
       if (!nestRes.ok) throw new Error(`Nest API ${nestRes.status}`)
       const { message: nestText } = await nestRes.json()
 
+      setLocalMessagesUsed(prev => prev + 1)
       const nestMsg: ChatMessage = { role: 'assistant', content: nestText }
       setMessages(prev => [...prev, nestMsg])
 
@@ -189,65 +237,60 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
 
   // ── Orb tap ──────────────────────────────────────────────────────────────────
   function handleOrbClick() {
+    if (limitReached) return
     const current = orbStateRef.current
 
-    // Tap while speaking → stop audio
     if (current === 'speaking') {
       audioRef.current?.pause()
       if (audioRef.current) audioRef.current.src = ''
       setOrbState('idle')
       return
     }
-
-    // Tap while thinking → ignore
-    if (current === 'thinking') return
-
-    // Tap while listening → stop
+    if (current === 'thinking')  return
     if (current === 'listening') {
       recognitionRef.current?.abort()
       setOrbState('idle')
       return
     }
 
-    // Idle → start listening
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any
     const SpeechRecognition = w.SpeechRecognition ?? w.webkitSpeechRecognition
-
     if (!SpeechRecognition) {
       setError('Voice input is not supported in this browser. Use the text input below.')
       return
     }
-
     startListening()
   }
 
   // ── Text fallback ────────────────────────────────────────────────────────────
   function handleTextSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!textInput.trim() || orbState === 'thinking' || orbState === 'speaking') return
+    if (!textInput.trim() || orbState === 'thinking' || orbState === 'speaking' || limitReached) return
     handleSend(textInput)
     setTextInput('')
   }
 
   const selectedVoiceName = VOICES.find(v => v.id === selectedVoice)?.name ?? 'Sarah'
+  const usagePercent      = Math.min(100, (localMessagesUsed / messageLimit) * 100)
+  const nearLimit         = !isPremium && localMessagesUsed >= messageLimit - 4
 
   // ── Toggle button styles ─────────────────────────────────────────────────────
   function toggleStyle(active: boolean) {
     return {
-      background:   active ? 'rgba(157,224,157,0.12)' : 'transparent',
-      border:       `1px solid ${active ? 'rgba(157,224,157,0.3)' : 'rgba(240,237,224,0.12)'}`,
-      borderRadius: 50,
-      padding:      '4px 11px',
-      fontFamily:   "'DM Sans', sans-serif",
-      fontSize:     11,
-      color:        active ? '#9de09d' : 'rgba(240,237,224,0.3)',
-      cursor:       'pointer',
-      transition:   'all 0.2s',
+      background:    active ? 'rgba(157,224,157,0.12)' : 'transparent',
+      border:        `1px solid ${active ? 'rgba(157,224,157,0.3)' : 'rgba(240,237,224,0.12)'}`,
+      borderRadius:  50,
+      padding:       '4px 11px',
+      fontFamily:    "'DM Sans', sans-serif",
+      fontSize:      11,
+      color:         active ? '#9de09d' : 'rgba(240,237,224,0.3)',
+      cursor:        'pointer',
+      transition:    'all 0.2s',
       letterSpacing: '0.03em',
-      display:      'flex',
-      alignItems:   'center',
-      gap:          5,
+      display:       'flex',
+      alignItems:    'center',
+      gap:           5,
     } as React.CSSProperties
   }
 
@@ -285,24 +328,28 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         padding: '28px 24px 16px',
       }}>
-        <NestOrb size={180} state={orbState} onClick={handleOrbClick} />
+        <NestOrb
+          size={180}
+          state={limitReached ? 'idle' : orbState}
+          onClick={handleOrbClick}
+        />
 
         {/* Status */}
         <p style={{
           fontFamily: "'DM Sans', sans-serif",
           fontSize: 13, letterSpacing: '0.04em',
-          color: orbState === 'idle' ? 'rgba(240,237,224,0.4)' : '#9de09d',
+          color: (orbState === 'idle' || limitReached) ? 'rgba(240,237,224,0.4)' : '#9de09d',
           marginTop: 14, marginBottom: 4,
           transition: 'color 0.3s ease',
         }}>
-          {STATUS[orbState]}
+          {limitReached ? 'Monthly limit reached' : STATUS[orbState]}
         </p>
 
         {/* Active voice name */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: 13, fontStyle: 'italic',
-          color: voiceEnabled ? 'rgba(240,237,224,0.3)' : 'rgba(240,237,224,0.15)',
+          color: (voiceEnabled && !limitReached) ? 'rgba(240,237,224,0.3)' : 'rgba(240,237,224,0.15)',
           marginBottom: 14,
           textDecoration: voiceEnabled ? 'none' : 'line-through',
         }}>
@@ -310,13 +357,13 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
         </p>
 
         {/* Voice selector pills */}
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center', opacity: voiceEnabled ? 1 : 0.4, transition: 'opacity 0.2s' }}>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center', opacity: (voiceEnabled && !limitReached) ? 1 : 0.4, transition: 'opacity 0.2s' }}>
           {VOICES.map(v => (
             <button
               key={v.id}
               onClick={() => setSelectedVoice(v.id)}
               title={v.label}
-              disabled={!voiceEnabled}
+              disabled={!voiceEnabled || limitReached}
               style={{
                 background:    selectedVoice === v.id ? 'rgba(240,237,224,0.14)' : 'transparent',
                 border:        `1px solid ${selectedVoice === v.id ? 'rgba(240,237,224,0.38)' : 'rgba(240,237,224,0.1)'}`,
@@ -325,7 +372,7 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
                 fontFamily:    "'DM Sans', sans-serif",
                 fontSize:      11,
                 color:         selectedVoice === v.id ? '#f0ede0' : 'rgba(240,237,224,0.38)',
-                cursor:        voiceEnabled ? 'pointer' : 'default',
+                cursor:        (voiceEnabled && !limitReached) ? 'pointer' : 'default',
                 transition:    'all 0.2s',
                 letterSpacing: '0.03em',
               }}
@@ -336,55 +383,145 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
         </div>
       </div>
 
-      {/* ── Transcript ── */}
-      <div
-        ref={transcriptRef}
-        style={{
-          flex: 1, overflowY: 'auto',
-          padding: '4px 18px 12px',
-          display: 'flex', flexDirection: 'column', gap: 10,
-        }}
-      >
-        {messages.map((msg, i) => (
-          <div
-            key={i}
+      {/* ── Transcript or upgrade prompt ── */}
+      {limitReached ? (
+        /* ── Upgrade prompt ─────────────────────────────────────────────── */
+        <div style={{
+          flex:            1,
+          display:         'flex',
+          flexDirection:   'column',
+          alignItems:      'center',
+          justifyContent:  'center',
+          padding:         '32px 28px',
+          gap:             16,
+          textAlign:       'center',
+        }}>
+          <p style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize:   22,
+            fontStyle:  'italic',
+            color:      '#f0ede0',
+            lineHeight: 1.5,
+            margin:     0,
+          }}>
+            You&apos;ve used all {messageLimit} of your free messages this month.
+          </p>
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize:   13,
+            color:      'rgba(240,237,224,0.5)',
+            lineHeight: 1.7,
+            margin:     0,
+            maxWidth:   280,
+          }}>
+            Upgrade to keep the conversation going — unlimited Nest, every feature, all stages.
+          </p>
+          <button
+            onClick={handleUpgrade}
+            disabled={upgradePending}
             style={{
-              display:        'flex',
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              background:    'rgba(240,237,224,0.1)',
+              border:        '1px solid rgba(240,237,224,0.28)',
+              borderRadius:  50,
+              padding:       '12px 32px',
+              fontFamily:    "'DM Sans', sans-serif",
+              fontSize:      13,
+              color:         '#f0ede0',
+              cursor:        upgradePending ? 'wait' : 'pointer',
+              letterSpacing: '0.04em',
+              marginTop:     8,
+              opacity:       upgradePending ? 0.5 : 1,
+              transition:    'opacity 0.2s',
             }}
           >
-            <div style={{
-              maxWidth:     '78%',
-              background:   msg.role === 'user'
-                ? 'rgba(240,237,224,0.09)'
-                : 'rgba(255,255,255,0.04)',
-              border:       `1px solid ${msg.role === 'user' ? 'rgba(240,237,224,0.14)' : 'rgba(255,255,255,0.07)'}`,
-              borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-              padding:      '9px 13px',
-              fontFamily:   "'DM Sans', sans-serif",
-              fontSize:     13,
-              lineHeight:   1.65,
-              color:        msg.role === 'user'
-                ? 'rgba(240,237,224,0.75)'
-                : 'rgba(240,237,224,0.65)',
-            }}>
-              {msg.role === 'assistant' ? stripMarkdown(msg.content) : msg.content}
+            {upgradePending ? 'Redirecting…' : 'Upgrade to Premium'}
+          </button>
+        </div>
+      ) : (
+        /* ── Transcript ─────────────────────────────────────────────────── */
+        <div
+          ref={transcriptRef}
+          style={{
+            flex:          1,
+            overflowY:     'auto',
+            padding:       '4px 18px 12px',
+            display:       'flex',
+            flexDirection: 'column',
+            gap:           10,
+          }}
+        >
+          {messages.map((msg, i) => (
+            <div
+              key={i}
+              style={{
+                display:        'flex',
+                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              }}
+            >
+              <div style={{
+                maxWidth:     '78%',
+                background:   msg.role === 'user'
+                  ? 'rgba(240,237,224,0.09)'
+                  : 'rgba(255,255,255,0.04)',
+                border:       `1px solid ${msg.role === 'user' ? 'rgba(240,237,224,0.14)' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                padding:      '9px 13px',
+                fontFamily:   "'DM Sans', sans-serif",
+                fontSize:     13,
+                lineHeight:   1.65,
+                color:        msg.role === 'user'
+                  ? 'rgba(240,237,224,0.75)'
+                  : 'rgba(240,237,224,0.65)',
+              }}>
+                {msg.role === 'assistant' ? stripMarkdown(msg.content) : msg.content}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {error && (
-          <p style={{
-            textAlign:   'center',
-            fontFamily:  "'DM Sans', sans-serif",
-            fontSize:    12,
-            color:       '#f08080',
-            padding:     '4px 0',
+          {error && (
+            <p style={{
+              textAlign:  'center',
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize:   12,
+              color:      '#f08080',
+              padding:    '4px 0',
+            }}>
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── Usage counter (free users only) ── */}
+      {!isPremium && !limitReached && (
+        <div style={{ flexShrink: 0, padding: '6px 18px 0' }}>
+          {/* Progress bar */}
+          <div style={{
+            height:       2,
+            background:   'rgba(240,237,224,0.08)',
+            borderRadius: 1,
+            overflow:     'hidden',
           }}>
-            {error}
+            <div style={{
+              height:       '100%',
+              width:        `${usagePercent}%`,
+              background:   nearLimit ? 'rgba(240,140,100,0.5)' : 'rgba(157,224,157,0.35)',
+              borderRadius: 1,
+              transition:   'width 0.4s ease, background 0.4s ease',
+            }} />
+          </div>
+          <p style={{
+            fontFamily:  "'DM Sans', sans-serif",
+            fontSize:    10,
+            color:       nearLimit ? 'rgba(240,140,100,0.65)' : 'rgba(240,237,224,0.2)',
+            textAlign:   'right',
+            marginTop:   4,
+            letterSpacing: '0.02em',
+          }}>
+            {localMessagesUsed} of {messageLimit} free messages this month
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Text fallback ── */}
       <form
@@ -402,37 +539,40 @@ export function NestVoiceChat({ firstName = 'there', parentType = null }: NestVo
           type="text"
           value={textInput}
           onChange={e => setTextInput(e.target.value)}
-          placeholder="Or type a message…"
+          placeholder={limitReached ? 'Upgrade to continue…' : 'Or type a message…'}
+          disabled={limitReached}
           style={{
-            flex:        1,
-            background:  'rgba(240,237,224,0.06)',
-            border:      '1px solid rgba(240,237,224,0.1)',
+            flex:         1,
+            background:   'rgba(240,237,224,0.06)',
+            border:       '1px solid rgba(240,237,224,0.1)',
             borderRadius: 50,
-            padding:     '10px 16px',
-            fontFamily:  "'DM Sans', sans-serif",
-            fontSize:    13,
-            color:       '#f0ede0',
-            outline:     'none',
+            padding:      '10px 16px',
+            fontFamily:   "'DM Sans', sans-serif",
+            fontSize:     13,
+            color:        '#f0ede0',
+            outline:      'none',
+            opacity:      limitReached ? 0.4 : 1,
+            cursor:       limitReached ? 'not-allowed' : 'text',
           }}
         />
         <button
           type="submit"
-          disabled={!textInput.trim() || orbState === 'thinking' || orbState === 'speaking'}
+          disabled={!textInput.trim() || orbState === 'thinking' || orbState === 'speaking' || limitReached}
           style={{
-            flexShrink:    0,
-            width:         38,
-            height:        38,
-            borderRadius:  '50%',
-            background:    'rgba(240,237,224,0.1)',
-            border:        '1px solid rgba(240,237,224,0.18)',
-            color:         '#f0ede0',
-            fontSize:      16,
-            cursor:        'pointer',
-            display:       'flex',
-            alignItems:    'center',
+            flexShrink:     0,
+            width:          38,
+            height:         38,
+            borderRadius:   '50%',
+            background:     'rgba(240,237,224,0.1)',
+            border:         '1px solid rgba(240,237,224,0.18)',
+            color:          '#f0ede0',
+            fontSize:       16,
+            cursor:         'pointer',
+            display:        'flex',
+            alignItems:     'center',
             justifyContent: 'center',
-            opacity:       (!textInput.trim() || orbState === 'thinking' || orbState === 'speaking') ? 0.35 : 1,
-            transition:    'opacity 0.2s',
+            opacity:        (!textInput.trim() || orbState === 'thinking' || orbState === 'speaking' || limitReached) ? 0.35 : 1,
+            transition:     'opacity 0.2s',
           }}
         >
           →

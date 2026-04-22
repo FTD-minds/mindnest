@@ -4,17 +4,19 @@ import { useState, useRef, type KeyboardEvent } from 'react'
 import { SpinnerIcon } from '@/components/ui/icons'
 
 interface NestInputProps {
-  onSend: (message: string) => void
-  isLoading: boolean
+  onSend:       (message: string) => void
+  isLoading:    boolean
+  disabled?:    boolean
+  placeholder?: string
 }
 
-export function NestInput({ onSend, isLoading }: NestInputProps) {
+export function NestInput({ onSend, isLoading, disabled = false, placeholder }: NestInputProps) {
   const [value, setValue]     = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function handleSend() {
     const trimmed = value.trim()
-    if (!trimmed || isLoading) return
+    if (!trimmed || isLoading || disabled) return
     onSend(trimmed)
     setValue('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
@@ -34,7 +36,7 @@ export function NestInput({ onSend, isLoading }: NestInputProps) {
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
   }
 
-  const canSend = value.trim().length > 0 && !isLoading
+  const canSend = value.trim().length > 0 && !isLoading && !disabled
 
   return (
     <div className="flex items-end gap-3 px-5 py-4 bg-white border-t border-sage-100">
@@ -44,9 +46,9 @@ export function NestInput({ onSend, isLoading }: NestInputProps) {
         onChange={e => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onInput={handleInput}
-        placeholder="Write to Nest…"
+        placeholder={placeholder ?? 'Write to Nest…'}
         rows={1}
-        disabled={isLoading}
+        disabled={isLoading || disabled}
         className="
           flex-1 resize-none bg-sage-50 border border-sage-200
           rounded-xl px-4 py-3 text-sm text-brand-900
