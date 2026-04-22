@@ -323,7 +323,7 @@ async function embedAndInsert(doc: KnowledgeDoc, index: number): Promise<void> {
     // Embed title + content together for richer semantic representation
     const response = await voyage.embed({
       input: `${doc.title}\n\n${doc.content}`,
-      model: 'voyage-3-lite',
+      model: 'voyage-3',
     })
 
     const embedding = response.data?.[0]?.embedding as number[] | undefined
