@@ -384,7 +384,7 @@ export async function POST(request: Request) {
   ] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, parent_type, pregnancy_week, selected_baby_id, beta_access')
+      .select('full_name, parent_type, pregnancy_week, selected_baby_id, beta_access, beta_access_expires_at')
       .eq('id', user.id)
       .single(),
     supabase
@@ -406,7 +406,8 @@ export async function POST(request: Request) {
 
   // ── Message limit enforcement ─────────────────────────────────────────────
   const isPremium     = ['active', 'trialing'].includes(subscription?.status ?? '')
-  const hasBetaAccess = profile?.beta_access ?? false
+  const betaExpiry    = profile?.beta_access_expires_at ? new Date(profile.beta_access_expires_at) : null
+  const hasBetaAccess = (profile?.beta_access ?? false) && (betaExpiry === null || betaExpiry > new Date())
   const messagesUsed  = usageCount ?? 0
 
   if (!isPremium && !hasBetaAccess && messagesUsed >= FREE_TIER_LIMIT) {

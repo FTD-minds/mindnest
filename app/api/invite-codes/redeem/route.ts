@@ -45,7 +45,10 @@ export async function POST(req: Request) {
       .eq('id', invite.id),
     db
       .from('profiles')
-      .update({ beta_access: true })
+      .update({
+        beta_access:            true,
+        beta_access_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+      })
       .eq('id', user.id),
   ])
 
