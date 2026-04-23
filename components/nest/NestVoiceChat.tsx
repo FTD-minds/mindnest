@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { NestOrb, type OrbState } from '@/components/ui/NestOrb'
 import type { ChatMessage } from '@/types'
 
@@ -54,8 +55,6 @@ interface NestVoiceChatProps {
   messagesUsed?: number
   messageLimit?: number
   isPremium?:    boolean
-  userId?:       string
-  email?:        string
 }
 
 export function NestVoiceChat({
@@ -64,8 +63,6 @@ export function NestVoiceChat({
   messagesUsed = 0,
   messageLimit = 20,
   isPremium    = false,
-  userId       = '',
-  email        = '',
 }: NestVoiceChatProps) {
   const [orbState,           setOrbState]           = useState<OrbState>('idle')
   const [selectedVoice,      setSelectedVoice]      = useState(VOICES[0].id)
@@ -78,7 +75,8 @@ export function NestVoiceChat({
   const [voiceWarning,       setVoiceWarning]       = useState(false)
   const [limitReached,       setLimitReached]       = useState(false)
   const [localMessagesUsed,  setLocalMessagesUsed]  = useState(messagesUsed)
-  const [upgradePending,     setUpgradePending]     = useState(false)
+  const [, startTransition]                          = useTransition()
+  const router                                       = useRouter()
 
   const audioRef        = useRef<HTMLAudioElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,22 +105,9 @@ export function NestVoiceChat({
   }, [])
 
   // ── Upgrade handler ───────────────────────────────────────────────────────
-  const handleUpgrade = useCallback(async () => {
-    setUpgradePending(true)
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ plan: 'monthly', userId, email }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch {
-      // silent — user stays on page
-    } finally {
-      setUpgradePending(false)
-    }
-  }, [userId, email])
+  const handleUpgrade = useCallback(() => {
+    startTransition(() => router.push('/upgrade'))
+  }, [router, startTransition])
 
   // ── Voice toggle (locked for free users) ─────────────────────────────────
   function handleVoiceToggle() {
@@ -458,7 +443,6 @@ export function NestVoiceChat({
           </p>
           <button
             onClick={handleUpgrade}
-            disabled={upgradePending}
             style={{
               background:    'rgba(240,237,224,0.1)',
               border:        '1px solid rgba(240,237,224,0.28)',
@@ -467,14 +451,13 @@ export function NestVoiceChat({
               fontFamily:    "'DM Sans', sans-serif",
               fontSize:      13,
               color:         '#f0ede0',
-              cursor:        upgradePending ? 'wait' : 'pointer',
+              cursor:        'pointer',
               letterSpacing: '0.04em',
               marginTop:     8,
-              opacity:       upgradePending ? 0.5 : 1,
               transition:    'opacity 0.2s',
             }}
           >
-            {upgradePending ? 'Redirecting…' : 'Upgrade to Premium'}
+            Upgrade to Premium
           </button>
         </div>
       ) : (

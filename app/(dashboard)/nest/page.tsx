@@ -11,8 +11,6 @@ export default async function NestPage() {
   let parentType:   string|null = null
   let isPremium:    boolean     = false
   let messagesUsed: number      = 0
-  let userId:       string      = ''
-  let email:        string      = ''
 
   if (user) {
     const startOfMonth = new Date()
@@ -26,7 +24,7 @@ export default async function NestPage() {
     ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('full_name, parent_type, email, beta_access')
+        .select('full_name, parent_type, beta_access')
         .eq('id', user.id)
         .single(),
       supabase
@@ -43,8 +41,6 @@ export default async function NestPage() {
 
     firstName    = profile?.full_name?.split(' ')[0] ?? 'there'
     parentType   = profile?.parent_type ?? null
-    email        = profile?.email ?? user.email ?? ''
-    userId       = user.id
     isPremium    = ['active', 'trialing'].includes(subscription?.status ?? '') || (profile?.beta_access ?? false)
     messagesUsed = usageCount ?? 0
   }
@@ -57,8 +53,6 @@ export default async function NestPage() {
         messagesUsed={messagesUsed}
         messageLimit={FREE_TIER_LIMIT}
         isPremium={isPremium}
-        userId={userId}
-        email={email}
       />
     </div>
   )
