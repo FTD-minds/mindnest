@@ -8,14 +8,16 @@ import { createClient } from '@/lib/supabase/client'
 import type { ParentType } from '@/types'
 
 type Journey = 'expecting' | 'parent'
-type Step = 'journey' | 'detail'
+type Step = 'invite' | 'journey' | 'detail'
 
 export default function OnboardingPage() {
-  const [step, setStep]               = useState<Step>('journey')
+  const [step, setStep]               = useState<Step>('invite')
   const [journey, setJourney]         = useState<Journey | null>(null)
   const [pregnancyWeek, setPregnancyWeek] = useState<string>('')
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState<string | null>(null)
+  const [inviteCode, setInviteCode]   = useState<string>('')
+  const [redeeming, setRedeeming]     = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -37,6 +39,39 @@ export default function OnboardingPage() {
       return false
     }
     return true
+  }
+
+  // ── Step 0: invite code redemption ───────────────────────────────────────
+  async function handleInviteSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setRedeeming(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/invite-codes/redeem', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ code: inviteCode }),
+      })
+      if (res.ok) {
+        setStep('journey')
+        return
+      }
+      const data = await res.json()
+      if (data.error === 'already_used') {
+        setError('That code has already been used.')
+      } else {
+        setError("That code doesn't look right — check it and try again.")
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setRedeeming(false)
+    }
+  }
+
+  function skipInvite() {
+    setError(null)
+    setStep('journey')
   }
 
   // ── Step 1: journey selection ─────────────────────────────────────────────
@@ -144,16 +179,63 @@ export default function OnboardingPage() {
             margin: '0 0 8px',
             letterSpacing: '0.01em',
           }}>
-            {step === 'journey' && 'Welcome to MindNest'}
-            {step === 'detail' && journey === 'expecting' && 'How far along are you?'}
-            {step === 'detail' && journey === 'parent' && 'How do you identify as a parent?'}
+            {step === 'invite'                              && 'Welcome to MindNest'}
+            {step === 'journey'                             && 'Welcome to MindNest'}
+            {step === 'detail' && journey === 'expecting'  && 'How far along are you?'}
+            {step === 'detail' && journey === 'parent'     && 'How do you identify as a parent?'}
           </h1>
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'rgba(240,237,224,0.5)', margin: 0 }}>
-            {step === 'journey' && "I'm Nest — let's get you set up."}
-            {step === 'detail' && journey === 'expecting' && 'Enter your current week of pregnancy.'}
-            {step === 'detail' && journey === 'parent' && 'No wrong answers here.'}
+            {step === 'invite'                              && 'Enter your invite code to get started.'}
+            {step === 'journey'                             && "I'm Nest — let's get you set up."}
+            {step === 'detail' && journey === 'expecting'  && 'Enter your current week of pregnancy.'}
+            {step === 'detail' && journey === 'parent'     && 'No wrong answers here.'}
           </p>
         </div>
+
+        {/* ── Step 0: Invite code ── */}
+        {step === 'invite' && (
+          <form onSubmit={handleInviteSubmit} style={card}>
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Invite code</label>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={e => setInviteCode(e.target.value.toUpperCase())}
+                placeholder="NEST-BETA-001"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                style={{ ...inputStyle, letterSpacing: '0.08em', fontFamily: "'DM Mono', 'DM Sans', monospace" }}
+              />
+            </div>
+
+            {error && <div style={errorBox}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={redeeming || !inviteCode.trim()}
+              style={btnPrimary(redeeming || !inviteCode.trim())}
+            >
+              {redeeming ? 'Checking…' : 'Redeem code'}
+            </button>
+
+            <p style={{ textAlign: 'center', marginTop: 20, marginBottom: 0 }}>
+              <button
+                type="button"
+                onClick={skipInvite}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+                  color: 'rgba(240,237,224,0.35)',
+                  textDecoration: 'underline',
+                  textDecorationColor: 'rgba(240,237,224,0.2)',
+                }}
+              >
+                I don&apos;t have an invite code
+              </button>
+            </p>
+          </form>
+        )}
 
         {/* ── Step 1: Journey cards ── */}
         {step === 'journey' && (
@@ -281,7 +363,7 @@ export default function OnboardingPage() {
           fontFamily: "'DM Sans', sans-serif",
           fontSize: 12,
           color: 'rgba(240,237,224,0.25)',
-          marginTop: step === 'detail' ? 16 : 24,
+          marginTop: step === 'invite' ? 0 : step === 'detail' ? 16 : 24,
           fontStyle: 'italic',
         }}>
           Every age. Every stage. Nest has you covered.
