@@ -513,7 +513,7 @@ export function NestVoiceChat({
           <p style={{
             fontFamily:  "'DM Sans', sans-serif",
             fontSize:    10,
-            color:       nearLimit ? 'rgba(240,140,100,0.65)' : 'rgba(240,237,224,0.2)',
+            color:       nearLimit ? 'rgba(240,140,100,0.85)' : 'rgba(255,255,255,0.75)',
             textAlign:   'right',
             marginTop:   4,
             letterSpacing: '0.02em',
