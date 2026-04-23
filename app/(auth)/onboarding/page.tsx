@@ -362,7 +362,7 @@ export default function OnboardingPage() {
           textAlign: 'center',
           fontFamily: "'DM Sans', sans-serif",
           fontSize: 12,
-          color: 'rgba(240,237,224,0.25)',
+          color: 'rgba(240,237,224,0.6)',
           marginTop: step === 'invite' ? 0 : step === 'detail' ? 16 : 24,
           fontStyle: 'italic',
         }}>
