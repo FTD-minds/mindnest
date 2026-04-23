@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { NestVoiceChat } from '@/components/nest/NestVoiceChat'
 
-const FREE_TIER_LIMIT = 20
+const FREE_TIER_LIMIT = 10
 
 export default async function NestPage() {
   const supabase = createServerClient()

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { claude } from '@/lib/claude'
 import { createServerClient } from '@/lib/supabase/server'
 
-const FREE_TIER_LIMIT = 20
+const FREE_TIER_LIMIT = 10
 
 const NEST_SYSTEM_PROMPT = `You communicate through voice — you can speak your responses aloud. When users ask you to read something or speak, simply respond naturally as if continuing the conversation. Never tell users you cannot speak or that you are text-only.
 

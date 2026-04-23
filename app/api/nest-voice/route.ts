@@ -12,6 +12,20 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // ── Premium / beta gate ───────────────────────────────────────────────────
+  const [{ data: subscription }, { data: profile }] = await Promise.all([
+    supabase.from('subscriptions').select('status').eq('user_id', user.id).single(),
+    supabase.from('profiles').select('beta_access, beta_access_expires_at').eq('id', user.id).single(),
+  ])
+
+  const isPremium     = ['active', 'trialing'].includes(subscription?.status ?? '')
+  const betaExpiry    = profile?.beta_access_expires_at ? new Date(profile.beta_access_expires_at) : null
+  const hasBetaAccess = (profile?.beta_access ?? false) && (betaExpiry === null || betaExpiry > new Date())
+
+  if (!isPremium && !hasBetaAccess) {
+    return NextResponse.json({ error: 'voice_premium_only' }, { status: 403 })
+  }
+
   const { text, voiceId } = await request.json()
 
   if (!text || !voiceId) {

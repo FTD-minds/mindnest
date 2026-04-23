@@ -72,8 +72,10 @@ export function NestVoiceChat({
   const [messages,           setMessages]           = useState<ChatMessage[]>(() => [buildInitialMessage(firstName, parentType)])
   const [textInput,          setTextInput]          = useState('')
   const [error,              setError]              = useState<string | null>(null)
-  const [voiceEnabled,       setVoiceEnabled]       = useState(true)
-  const [autoListen,         setAutoListen]         = useState(true)
+  const voiceLocked                                  = !isPremium
+  const [voiceEnabled,       setVoiceEnabled]       = useState(isPremium)
+  const [autoListen,         setAutoListen]         = useState(isPremium)
+  const [voiceWarning,       setVoiceWarning]       = useState(false)
   const [limitReached,       setLimitReached]       = useState(false)
   const [localMessagesUsed,  setLocalMessagesUsed]  = useState(messagesUsed)
   const [upgradePending,     setUpgradePending]     = useState(false)
@@ -121,6 +123,16 @@ export function NestVoiceChat({
       setUpgradePending(false)
     }
   }, [userId, email])
+
+  // ── Voice toggle (locked for free users) ─────────────────────────────────
+  function handleVoiceToggle() {
+    if (voiceLocked) {
+      setVoiceWarning(true)
+      setTimeout(() => setVoiceWarning(false), 3500)
+      return
+    }
+    setVoiceEnabled(v => !v)
+  }
 
   // ── Start listening (shared between manual tap and auto-listen) ───────────────
   const startListening = useCallback(() => {
@@ -312,11 +324,20 @@ export function NestVoiceChat({
 
         {/* Voice + Auto toggles */}
         <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-          <button onClick={() => setVoiceEnabled(v => !v)} style={toggleStyle(voiceEnabled)} title={voiceEnabled ? 'Mute voice' : 'Unmute voice'}>
-            {voiceEnabled ? '🔊' : '🔇'}
-            <span>{voiceEnabled ? 'Voice' : 'Muted'}</span>
+          <button
+            onClick={handleVoiceToggle}
+            style={toggleStyle(voiceEnabled && !voiceLocked)}
+            title={voiceLocked ? 'Voice is a Premium feature' : voiceEnabled ? 'Mute voice' : 'Unmute voice'}
+          >
+            <span>{voiceLocked ? '🔒' : voiceEnabled ? '🔊' : '🔇'}</span>
+            <span>Voice</span>
           </button>
-          <button onClick={() => setAutoListen(v => !v)} style={toggleStyle(autoListen)} title={autoListen ? 'Switch to manual tap' : 'Switch to auto-listen'}>
+          <button
+            onClick={() => { if (!voiceLocked) setAutoListen(v => !v) }}
+            style={{ ...toggleStyle(autoListen && !voiceLocked), cursor: voiceLocked ? 'default' : 'pointer' }}
+            title={voiceLocked ? 'Auto-listen requires Premium' : autoListen ? 'Switch to manual tap' : 'Switch to auto-listen'}
+          >
+            {voiceLocked && <span>🔒</span>}
             <span>Auto</span>
           </button>
         </div>
@@ -383,6 +404,25 @@ export function NestVoiceChat({
         </div>
       </div>
 
+      {/* ── Voice locked warning ── */}
+      {voiceWarning && (
+        <div style={{
+          flexShrink:  0,
+          margin:      '0 18px 4px',
+          background:  'rgba(240,237,224,0.07)',
+          border:      '1px solid rgba(240,237,224,0.14)',
+          borderRadius: 12,
+          padding:     '10px 14px',
+          fontFamily:  "'DM Sans', sans-serif",
+          fontSize:    12,
+          color:       'rgba(240,237,224,0.7)',
+          textAlign:   'center',
+          lineHeight:  1.6,
+        }}>
+          Voice is a Premium feature. Upgrade to hear Nest speak.
+        </div>
+      )}
+
       {/* ── Transcript or upgrade prompt ── */}
       {limitReached ? (
         /* ── Upgrade prompt ─────────────────────────────────────────────── */
@@ -414,7 +454,7 @@ export function NestVoiceChat({
             margin:     0,
             maxWidth:   280,
           }}>
-            Upgrade to keep the conversation going — unlimited Nest, every feature, all stages.
+            Upgrade for unlimited Nest conversations and voice.
           </p>
           <button
             onClick={handleUpgrade}
