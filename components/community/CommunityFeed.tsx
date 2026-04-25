@@ -54,9 +54,12 @@ function PostCard({
   async function handleLike() {
     if (loading) return
     setLoading(true)
-    // Optimistic update
-    setLiked(v => !v)
-    setCount(v => liked ? v - 1 : v + 1)
+    // Optimistic update — nest setCount inside setLiked to read current state
+    setLiked(prev => {
+      const nowLiked = !prev
+      setCount(c => nowLiked ? c + 1 : c - 1)
+      return nowLiked
+    })
     try {
       await fetch('/api/community/like', {
         method:  'POST',
@@ -65,8 +68,11 @@ function PostCard({
       })
     } catch {
       // Revert on failure
-      setLiked(v => !v)
-      setCount(v => liked ? v + 1 : v - 1)
+      setLiked(prev => {
+        const reverted = !prev
+        setCount(c => reverted ? c + 1 : c - 1)
+        return reverted
+      })
     } finally {
       setLoading(false)
     }
@@ -180,7 +186,11 @@ export function CommunityFeed({
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error ?? 'Something went wrong. Please try again.')
+        if (data.error === 'moderation_failed') {
+          setError("Your post didn't make it through — keep it kind and supportive!")
+        } else {
+          setError(data.error ?? 'Something went wrong. Please try again.')
+        }
         return
       }
 

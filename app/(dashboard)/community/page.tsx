@@ -29,6 +29,53 @@ export default async function CommunityPage() {
     )
   }
 
+  // ── Premium gate ────────────────────────────────────────────────────────────
+  const [{ data: subscription }, { data: profile }] = await Promise.all([
+    supabase.from('subscriptions').select('status').eq('user_id', user.id).single(),
+    supabase.from('profiles').select('beta_access, beta_access_expires_at').eq('id', user.id).single(),
+  ])
+
+  const isPremium     = ['active', 'trialing'].includes(subscription?.status ?? '')
+  const betaExpiry    = profile?.beta_access_expires_at ? new Date(profile.beta_access_expires_at) : null
+  const hasBetaAccess = (profile?.beta_access ?? false) && (betaExpiry === null || betaExpiry > new Date())
+
+  if (!isPremium && !hasBetaAccess) {
+    return (
+      <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
+        <header className="mb-8">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">
+            Community
+          </p>
+          <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">
+            You're not alone
+          </h1>
+        </header>
+        <div className="bg-white rounded-2xl border border-sage-200 px-6 py-10 text-center">
+          <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center mx-auto mb-4">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87" />
+              <path d="M16 3.13a4 4 0 010 7.75" />
+            </svg>
+          </div>
+          <p className="font-display text-lg italic text-brand-900 mb-2">
+            Community is a Premium feature
+          </p>
+          <p className="text-sm text-sage-400 mb-6 leading-relaxed">
+            Connect with other parents, share wins, ask questions, and get a personal reply from Nest on every post.
+          </p>
+          <Link
+            href="/upgrade"
+            className="inline-block px-6 py-3 rounded-xl bg-brand-600 text-white text-[11px] uppercase tracking-[0.18em] font-medium hover:bg-brand-700 transition-colors"
+          >
+            Upgrade to Premium
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   // Fetch baby for age context on new posts
   const { data: babies } = await supabase
     .from('babies')

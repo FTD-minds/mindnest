@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { claude } from '@/lib/claude'
 
+const MODERATION_PROMPT = `You are a content moderator for MindNest, a parenting app community. Review the post below and decide if it is appropriate to publish.
+
+Reject the post if it contains any of the following:
+- Hate speech, slurs, or discriminatory language
+- Harassment, bullying, or personal attacks
+- Graphic violence or self-harm content
+- Spam, advertising, or irrelevant promotional content
+- Misinformation that could harm children or parents
+
+Allow anything that is a genuine parenting experience, question, win, struggle, or moment — even if emotionally raw or difficult.
+
+Respond with ONLY a JSON object in this exact format (no markdown, no explanation):
+{ "approved": true }
+or
+{ "approved": false, "reason": "brief reason here" }`
+
 const NEST_COMMUNITY_PROMPT = `You are Nest, the warm AI coach inside MindNest, responding to a parent who just shared something in the community feed.
 
 Write a single, warm, encouraging reply in 1–2 sentences. Be specific to what they shared.
@@ -29,6 +45,26 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // ── AI content moderation ─────────────────────────────────────────────────
+  try {
+    const modResponse = await claude.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 60,
+      system:     MODERATION_PROMPT,
+      messages:   [{ role: 'user', content: content.trim() }],
+    })
+    const modText = modResponse.content[0].type === 'text' ? modResponse.content[0].text.trim() : ''
+    const modResult = JSON.parse(modText) as { approved: boolean; reason?: string }
+    if (!modResult.approved) {
+      return NextResponse.json(
+        { error: 'moderation_failed', reason: modResult.reason ?? 'Content not allowed' },
+        { status: 400 },
+      )
+    }
+  } catch {
+    // If moderation call fails entirely, allow the post through (fail open)
   }
 
   // Generate Nest's reply via Claude Haiku (low cost, fast)

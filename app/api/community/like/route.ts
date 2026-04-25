@@ -24,21 +24,42 @@ export async function POST(request: Request) {
     .eq('post_id', postId)
     .single()
 
+  // Fetch current likes_count for arithmetic update
+  const { data: postData } = await supabase
+    .from('community_posts')
+    .select('likes_count')
+    .eq('id', postId)
+    .single()
+
+  const currentCount = postData?.likes_count ?? 0
+
   if (existing) {
     // Unlike
-    await supabase
-      .from('community_post_likes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('post_id', postId)
+    await Promise.all([
+      supabase
+        .from('community_post_likes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('post_id', postId),
+      supabase
+        .from('community_posts')
+        .update({ likes_count: Math.max(0, currentCount - 1) })
+        .eq('id', postId),
+    ])
 
     return NextResponse.json({ liked: false })
   }
 
   // Like
-  await supabase
-    .from('community_post_likes')
-    .insert({ user_id: user.id, post_id: postId })
+  await Promise.all([
+    supabase
+      .from('community_post_likes')
+      .insert({ user_id: user.id, post_id: postId }),
+    supabase
+      .from('community_posts')
+      .update({ likes_count: currentCount + 1 })
+      .eq('id', postId),
+  ])
 
   return NextResponse.json({ liked: true })
 }
