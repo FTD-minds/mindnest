@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckIcon } from '@/components/ui/icons'
+import { CheckIcon, SpinnerIcon } from '@/components/ui/icons'
 
 interface MilestoneCardProps {
   id:           string
@@ -12,6 +12,8 @@ interface MilestoneCardProps {
   brainArea:    string
   isEmerging:   boolean
   isNoted:      boolean
+  isPremium?:   boolean
+  babyName?:    string
 }
 
 const AREA_COLORS: Record<string, string> = {
@@ -23,15 +25,26 @@ const AREA_COLORS: Record<string, string> = {
 }
 
 export function MilestoneCard({
-  id, babyId, title, description, howToSupport, brainArea, isEmerging, isNoted: initialIsNoted,
+  id, babyId, title, description, howToSupport, brainArea,
+  isEmerging, isNoted: initialIsNoted,
+  isPremium = false, babyName,
 }: MilestoneCardProps) {
-  const [isNoted, setIsNoted] = useState(initialIsNoted)
-  const [expanded, setExpanded] = useState(false)
+  const [isNoted,          setIsNoted]          = useState(initialIsNoted)
+  const [expanded,         setExpanded]         = useState(false)
+  const [showSharePrompt,  setShowSharePrompt]  = useState(false)
+  const [shareStatus,      setShareStatus]      = useState<'idle' | 'sharing' | 'shared'>('idle')
   const [, startTransition] = useTransition()
 
   async function handleToggle() {
     const next = !isNoted
     setIsNoted(next)
+    // Show share prompt when noting (not un-noting), premium only
+    if (next && isPremium) {
+      setShowSharePrompt(true)
+      setShareStatus('idle')
+    } else {
+      setShowSharePrompt(false)
+    }
     startTransition(async () => {
       await fetch('/api/milestones/note', {
         method:  'POST',
@@ -39,6 +52,31 @@ export function MilestoneCard({
         body:    JSON.stringify({ babyId, milestoneId: id }),
       })
     })
+  }
+
+  async function handleShare() {
+    setShareStatus('sharing')
+    const name    = babyName ?? 'My baby'
+    const content = `🌱 ${name} just reached: ${title}!`
+    try {
+      await fetch('/api/community/post', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          content,
+          is_memory_card: true,
+          milestone_id:   id,
+        }),
+      })
+      setShareStatus('shared')
+      setTimeout(() => setShowSharePrompt(false), 1800)
+    } catch {
+      setShareStatus('idle')
+    }
+  }
+
+  function handleSkip() {
+    setShowSharePrompt(false)
   }
 
   const areaColor = AREA_COLORS[brainArea] ?? 'bg-sage-100 text-sage-600'
@@ -98,6 +136,42 @@ export function MilestoneCard({
           {expanded && (
             <div className="mt-2 bg-brand-50 rounded-xl px-4 py-3">
               <p className="text-[12px] text-brand-800 leading-relaxed">{howToSupport}</p>
+            </div>
+          )}
+
+          {/* Share prompt — only shows after noting, premium users only */}
+          {showSharePrompt && (
+            <div className="mt-3 bg-warm-50 border border-warm-200 rounded-xl px-4 py-3">
+              {shareStatus === 'shared' ? (
+                <p className="text-[12px] text-brand-700 font-medium">
+                  🌱 Shared to the community!
+                </p>
+              ) : (
+                <>
+                  <p className="text-[12px] text-brand-800 mb-2.5 leading-relaxed">
+                    Share this milestone with the community?
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleShare}
+                      disabled={shareStatus === 'sharing'}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-[11px] font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                    >
+                      {shareStatus === 'sharing' ? (
+                        <><SpinnerIcon size={11} /><span>Sharing…</span></>
+                      ) : (
+                        'Share'
+                      )}
+                    </button>
+                    <button
+                      onClick={handleSkip}
+                      className="px-3 py-1.5 text-[11px] text-sage-400 hover:text-sage-600 transition-colors"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

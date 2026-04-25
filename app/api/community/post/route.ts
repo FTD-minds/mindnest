@@ -2,21 +2,33 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { claude } from '@/lib/claude'
 
-const MODERATION_PROMPT = `You are a content moderator for MindNest, a parenting app community. Review the post below and decide if it is appropriate to publish.
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-Reject the post if it contains any of the following:
-- Hate speech, slurs, or discriminatory language
-- Harassment, bullying, or personal attacks
-- Graphic violence or self-harm content
-- Spam, advertising, or irrelevant promotional content
-- Misinformation that could harm children or parents
+function computeAgeGroup(ageMonths: number | null, isExpecting: boolean): string | null {
+  if (isExpecting)           return 'expecting'
+  if (ageMonths === null)    return null
+  if (ageMonths <= 3)        return '0-3mo'
+  if (ageMonths <= 6)        return '4-6mo'
+  if (ageMonths <= 12)       return '7-12mo'
+  if (ageMonths <= 18)       return '1y'
+  if (ageMonths <= 24)       return '18mo'
+  if (ageMonths <= 36)       return '2y'
+  return '3y+'
+}
 
-Allow anything that is a genuine parenting experience, question, win, struggle, or moment — even if emotionally raw or difficult.
+function detectPostType(content: string, isMemoryCard: boolean): 'moment' | 'question' | 'milestone' {
+  if (isMemoryCard) return 'milestone'
+  const lower = content.toLowerCase()
+  if (
+    content.trim().endsWith('?') ||
+    /\b(how|why|what|when|should|can i|is it|does|help)\b/.test(lower)
+  ) return 'question'
+  return 'moment'
+}
 
-Respond with ONLY a JSON object in this exact format (no markdown, no explanation):
-{ "approved": true }
-or
-{ "approved": false, "reason": "brief reason here" }`
+// ── Prompts ──────────────────────────────────────────────────────────────────
+
+const MODERATION_PROMPT = `You are a content moderator for MindNest, a warm premium parenting community for mothers. Respond ONLY with valid JSON.`
 
 const NEST_COMMUNITY_PROMPT = `You are Nest, the warm AI coach inside MindNest, responding to a parent who just shared something in the community feed.
 
@@ -24,74 +36,104 @@ Write a single, warm, encouraging reply in 1–2 sentences. Be specific to what 
 - If it's a win: celebrate it genuinely and name what developmental milestone or parenting skill it reflects.
 - If it's a struggle: validate the feeling first, then offer one practical, hopeful thought.
 - If it's a question: give one brief, practical answer and end with encouragement.
+- If it's a milestone celebration: be warm and specific about what this milestone means developmentally.
 
 Never use hollow praise like "Great job!" or "Amazing!". Be real and specific.
 Never diagnose, prescribe, or replace medical advice.
 Keep it under 60 words. Warm, expert, human.`
 
+// ── POST — create post ────────────────────────────────────────────────────────
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
-  const { content, babyAgeMonths } = body
+  const {
+    content,
+    babyAgeMonths,
+    post_type: clientPostType,
+    is_memory_card = false,
+    milestone_id   = null,
+  } = body as {
+    content:        unknown
+    babyAgeMonths?: unknown
+    post_type?:     string
+    is_memory_card?: boolean
+    milestone_id?:  string | null
+  }
 
   if (!content || typeof content !== 'string' || content.trim().length === 0) {
     return NextResponse.json({ error: 'content is required' }, { status: 400 })
   }
-  if (content.length > 1000) {
+  if ((content as string).length > 1000) {
     return NextResponse.json({ error: 'content must be 1000 characters or fewer' }, { status: 400 })
   }
 
   const supabase = createServerClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
-
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // ── AI content moderation ─────────────────────────────────────────────────
+  const trimmedContent = (content as string).trim()
+
+  // ── AI content moderation ──────────────────────────────────────────────────
   try {
     const modResponse = await claude.messages.create({
       model:      'claude-haiku-4-5-20251001',
-      max_tokens: 60,
+      max_tokens: 80,
       system:     MODERATION_PROMPT,
-      messages:   [{ role: 'user', content: content.trim() }],
+      messages:   [{
+        role:    'user',
+        content: `Review this post. Return { "approved": boolean, "reason": string }. Approve: warm supportive parenting content, questions about baby development, milestone celebrations. Reject: profanity, negativity about MindNest or Nest AI, bullying, spam, harmful medical claims, anything making parents feel judged.\n\nPost: ${trimmedContent}`,
+      }],
     })
-    const modText = modResponse.content[0].type === 'text' ? modResponse.content[0].text.trim() : ''
-    const modResult = JSON.parse(modText) as { approved: boolean; reason?: string }
+    const modText   = modResponse.content[0].type === 'text' ? modResponse.content[0].text.trim() : ''
+    // Strip markdown code fences if present
+    const cleaned   = modText.replace(/^```[^\n]*\n?/m, '').replace(/```$/m, '').trim()
+    const modResult = JSON.parse(cleaned) as { approved: boolean; reason?: string }
+
     if (!modResult.approved) {
       return NextResponse.json(
-        { error: 'moderation_failed', reason: modResult.reason ?? 'Content not allowed' },
+        { error: 'moderation_failed', message: 'Your post did not meet our community guidelines — keep it warm and supportive!' },
         { status: 400 },
       )
     }
   } catch {
-    // If moderation call fails entirely, allow the post through (fail open)
+    // Fail open — if moderation errors, allow the post through
   }
 
-  // Generate Nest's reply via Claude Haiku (low cost, fast)
+  // ── Compute metadata ──────────────────────────────────────────────────────
+  const ageMonths  = typeof babyAgeMonths === 'number' ? babyAgeMonths : null
+  const isExpecting = false // caller can pass babyAgeMonths=null for expecting
+  const ageGroup   = computeAgeGroup(ageMonths, isExpecting)
+  const postType   = clientPostType === 'question' ? 'question'
+    : detectPostType(trimmedContent, is_memory_card)
+
+  // ── Nest community reply ───────────────────────────────────────────────────
   let nestReply: string | null = null
   try {
-    const ageContext = typeof babyAgeMonths === 'number'
-      ? ` Their baby is ${babyAgeMonths} months old.`
-      : ''
-
+    const ageContext = ageMonths !== null ? ` Their baby is ${ageMonths} months old.` : ''
     const response = await claude.messages.create({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 120,
       system:     NEST_COMMUNITY_PROMPT,
-      messages:   [{ role: 'user', content: content.trim() + ageContext }],
+      messages:   [{ role: 'user', content: trimmedContent + ageContext }],
     })
-
     nestReply = response.content[0].type === 'text' ? response.content[0].text.trim() : null
   } catch {
-    // Non-fatal — post is still saved without Nest reply
+    // Non-fatal
   }
 
   const { data: post, error: insertError } = await supabase
     .from('community_posts')
     .insert({
       user_id:         user.id,
-      content:         content.trim(),
-      baby_age_months: typeof babyAgeMonths === 'number' ? babyAgeMonths : null,
+      content:         trimmedContent,
+      baby_age_months: ageMonths,
+      age_group:       ageGroup,
+      post_type:       postType,
+      is_memory_card:  is_memory_card,
+      milestone_id:    milestone_id ?? null,
+      is_approved:     true,
       nest_reply:      nestReply,
       nest_replied_at: nestReply ? new Date().toISOString() : null,
     })
@@ -105,47 +147,56 @@ export async function POST(request: Request) {
   return NextResponse.json({ post })
 }
 
+// ── GET — paginated feed ──────────────────────────────────────────────────────
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const limit  = Math.min(parseInt(searchParams.get('limit')  ?? '20'), 50)
-  const offset = parseInt(searchParams.get('offset') ?? '0')
+  const limit     = Math.min(parseInt(searchParams.get('limit')  ?? '20'), 50)
+  const offset    = parseInt(searchParams.get('offset') ?? '0')
+  const ageGroup  = searchParams.get('ageGroup')
+  const memoryOnly = searchParams.get('memoryOnly') === 'true'
 
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: posts, error } = await supabase
+  let query = supabase
     .from('community_posts')
     .select(`
-      id, content, baby_age_months, likes_count, nest_reply,
-      nest_replied_at, created_at, user_id,
+      id, content, baby_age_months, age_group, post_type, likes_count, reactions,
+      is_memory_card, milestone_id, nest_reply, nest_replied_at, created_at, user_id,
       profiles!inner ( full_name )
     `)
+    .eq('is_approved', true)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+  if (ageGroup)   query = query.eq('age_group', ageGroup)
+  if (memoryOnly) query = query.eq('is_memory_card', true)
 
-  // Fetch which posts the current user has liked
+  const { data: posts, error } = await query
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
   const postIds = posts?.map(p => p.id) ?? []
-  const { data: likes } = postIds.length > 0
-    ? await supabase
-        .from('community_post_likes')
-        .select('post_id')
-        .eq('user_id', user.id)
-        .in('post_id', postIds)
-    : { data: [] }
 
-  const likedSet = new Set(likes?.map(l => l.post_id) ?? [])
+  const [{ data: likes }, { data: reactions }] = postIds.length > 0
+    ? await Promise.all([
+        supabase.from('community_post_likes').select('post_id').eq('user_id', user.id).in('post_id', postIds),
+        supabase.from('community_reactions').select('post_id, reaction_type').eq('user_id', user.id).in('post_id', postIds),
+      ])
+    : [{ data: [] }, { data: [] }]
+
+  const likedSet: Set<string> = new Set(likes?.map(l => l.post_id) ?? [])
+  const reactMap: Record<string, string[]> = {}
+  for (const r of reactions ?? []) {
+    if (!reactMap[r.post_id]) reactMap[r.post_id] = []
+    reactMap[r.post_id].push(r.reaction_type)
+  }
 
   const enriched = (posts ?? []).map(p => ({
     ...p,
-    liked_by_me: likedSet.has(p.id),
+    liked_by_me:  likedSet.has(p.id),
+    my_reactions: reactMap[p.id] ?? [],
   }))
 
   return NextResponse.json({ posts: enriched })

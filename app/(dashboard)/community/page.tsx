@@ -11,6 +11,18 @@ function getAgeMonths(dateOfBirth: string): number {
   return Math.max(0, Math.min(48, months))
 }
 
+function computeAgeGroup(ageMonths: number | null, isExpecting: boolean): string | null {
+  if (isExpecting)        return 'expecting'
+  if (ageMonths === null) return null
+  if (ageMonths <= 3)     return '0-3mo'
+  if (ageMonths <= 6)     return '4-6mo'
+  if (ageMonths <= 12)    return '7-12mo'
+  if (ageMonths <= 18)    return '1y'
+  if (ageMonths <= 24)    return '18mo'
+  if (ageMonths <= 36)    return '2y'
+  return '3y+'
+}
+
 export default async function CommunityPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,19 +32,17 @@ export default async function CommunityPage() {
       <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
         <p className="text-sage-400 text-sm">
           Please{' '}
-          <Link href="/login" className="text-brand-600 underline">
-            sign in
-          </Link>{' '}
-          to join the community.
+          <Link href="/login" className="text-brand-600 underline">sign in</Link>
+          {' '}to join the community.
         </p>
       </div>
     )
   }
 
-  // ── Premium gate ────────────────────────────────────────────────────────────
+  // ── Premium gate ─────────────────────────────────────────────────────────
   const [{ data: subscription }, { data: profile }] = await Promise.all([
     supabase.from('subscriptions').select('status').eq('user_id', user.id).single(),
-    supabase.from('profiles').select('beta_access, beta_access_expires_at').eq('id', user.id).single(),
+    supabase.from('profiles').select('beta_access, beta_access_expires_at, parent_type').eq('id', user.id).single(),
   ])
 
   const isPremium     = ['active', 'trialing'].includes(subscription?.status ?? '')
@@ -43,12 +53,8 @@ export default async function CommunityPage() {
     return (
       <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
         <header className="mb-8">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">
-            Community
-          </p>
-          <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">
-            You're not alone
-          </h1>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Community</p>
+          <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">You're not alone</h1>
         </header>
         <div className="bg-white rounded-2xl border border-sage-200 px-6 py-10 text-center">
           <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center mx-auto mb-4">
@@ -59,9 +65,7 @@ export default async function CommunityPage() {
               <path d="M16 3.13a4 4 0 010 7.75" />
             </svg>
           </div>
-          <p className="font-display text-lg italic text-brand-900 mb-2">
-            Community is a Premium feature
-          </p>
+          <p className="font-display text-lg italic text-brand-900 mb-2">Community is a Premium feature</p>
           <p className="text-sm text-sage-400 mb-6 leading-relaxed">
             Connect with other parents, share wins, ask questions, and get a personal reply from Nest on every post.
           </p>
@@ -76,67 +80,120 @@ export default async function CommunityPage() {
     )
   }
 
-  // Fetch baby for age context on new posts
+  // ── Baby / age data ───────────────────────────────────────────────────────
   const { data: babies } = await supabase
     .from('babies')
-    .select('date_of_birth')
+    .select('date_of_birth, name')
     .eq('user_id', user.id)
     .limit(1)
 
-  const babyAgeMonths = babies?.[0]
-    ? getAgeMonths(babies[0].date_of_birth)
-    : null
+  const baby          = babies?.[0] ?? null
+  const babyAgeMonths = baby ? getAgeMonths(baby.date_of_birth) : null
+  const isExpecting   = profile?.parent_type === 'expecting'
+  const ageGroup      = computeAgeGroup(babyAgeMonths, isExpecting)
 
-  // Fetch latest 20 posts with author profiles
-  const { data: rawPosts } = await supabase
-    .from('community_posts')
-    .select(`
-      id, content, baby_age_months, likes_count,
-      nest_reply, nest_replied_at, created_at, user_id,
-      profiles!inner ( full_name )
-    `)
-    .order('created_at', { ascending: false })
-    .limit(20)
+  // ── Parallel data fetches ─────────────────────────────────────────────────
+  const [
+    { data: rawStagePosts },
+    { data: rawMemoryPosts },
+    { data: rawProducts },
+  ] = await Promise.all([
+    // Stage posts — matching age group
+    supabase
+      .from('community_posts')
+      .select(`
+        id, content, baby_age_months, age_group, post_type,
+        likes_count, reactions, is_memory_card, milestone_id,
+        nest_reply, nest_replied_at, created_at, user_id,
+        profiles!inner ( full_name )
+      `)
+      .eq('is_approved', true)
+      .eq('age_group', ageGroup ?? '')
+      .order('created_at', { ascending: false })
+      .limit(20),
 
-  // Fetch which posts the current user has liked
-  const postIds = rawPosts?.map(p => p.id) ?? []
-  const { data: myLikes } = postIds.length > 0
-    ? await supabase
-        .from('community_post_likes')
-        .select('post_id')
-        .eq('user_id', user.id)
-        .in('post_id', postIds)
-    : { data: [] }
+    // Memory / milestone cards
+    supabase
+      .from('community_posts')
+      .select(`
+        id, content, baby_age_months, age_group, post_type,
+        likes_count, reactions, is_memory_card, milestone_id,
+        nest_reply, nest_replied_at, created_at, user_id,
+        profiles!inner ( full_name )
+      `)
+      .eq('is_approved', true)
+      .eq('is_memory_card', true)
+      .order('created_at', { ascending: false })
+      .limit(20),
 
-  const likedSet = new Set(myLikes?.map(l => l.post_id) ?? [])
+    // Affiliate products
+    (() => {
+      let q = supabase
+        .from('affiliate_products')
+        .select('id, title, description, image_url, affiliate_url, age_min_months, age_max_months, category')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(6)
+      if (babyAgeMonths !== null) {
+        q = q.lte('age_min_months', babyAgeMonths).gte('age_max_months', babyAgeMonths)
+      }
+      return q
+    })(),
+  ])
 
-  const posts = (rawPosts ?? []).map(p => ({
-    ...p,
-    // Supabase returns the joined profiles as an array; normalise to single object
-    profiles: Array.isArray(p.profiles) ? (p.profiles[0] ?? null) : p.profiles,
-    liked_by_me: likedSet.has(p.id),
-  }))
+  // ── Per-user like + reaction maps ─────────────────────────────────────────
+  const allPostIds = [
+    ...(rawStagePosts?.map(p => p.id)  ?? []),
+    ...(rawMemoryPosts?.map(p => p.id) ?? []),
+  ]
+
+  const [{ data: myLikes }, { data: myReactions }] = allPostIds.length > 0
+    ? await Promise.all([
+        supabase.from('community_post_likes').select('post_id').eq('user_id', user.id).in('post_id', allPostIds),
+        supabase.from('community_reactions').select('post_id, reaction_type').eq('user_id', user.id).in('post_id', allPostIds),
+      ])
+    : [{ data: [] }, { data: [] }]
+
+  const likedSet: Set<string> = new Set(myLikes?.map(l => l.post_id) ?? [])
+  const reactMap: Record<string, string[]> = {}
+  for (const r of myReactions ?? []) {
+    if (!reactMap[r.post_id]) reactMap[r.post_id] = []
+    reactMap[r.post_id].push(r.reaction_type)
+  }
+
+  function mapPost(p: {
+    id: string
+    profiles: { full_name: string } | { full_name: string }[] | null
+    [key: string]: unknown
+  }) {
+    return {
+      ...p,
+      profiles:     Array.isArray(p.profiles) ? (p.profiles[0] ?? null) : p.profiles,
+      liked_by_me:  likedSet.has(p.id),
+      my_reactions: reactMap[p.id] ?? [],
+    }
+  }
+
+  const stagePosts  = (rawStagePosts  ?? []).map(mapPost)
+  const memoryPosts = (rawMemoryPosts ?? []).map(mapPost)
 
   return (
     <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="mb-8">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">
-          Community
-        </p>
-        <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">
-          You're not alone
-        </h1>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Community</p>
+        <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">You're not alone</h1>
         <p className="text-sm text-sage-400 mt-2 leading-relaxed">
-          Share wins, questions, and real moments with other mamas.
-          Nest is here too — every post gets a personal reply.
+          Share wins, questions, and real moments. Nest is here too — every post gets a personal reply.
         </p>
       </header>
 
       <CommunityFeed
-        initialPosts={posts}
+        initialStagePosts={stagePosts as Parameters<typeof CommunityFeed>[0]['initialStagePosts']}
+        initialMemoryPosts={memoryPosts as Parameters<typeof CommunityFeed>[0]['initialMemoryPosts']}
+        products={(rawProducts ?? []) as Parameters<typeof CommunityFeed>[0]['products']}
         currentUserId={user.id}
         babyAgeMonths={babyAgeMonths}
+        ageGroup={ageGroup}
       />
     </div>
   )

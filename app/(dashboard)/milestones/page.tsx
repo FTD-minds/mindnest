@@ -34,12 +34,16 @@ export default async function MilestonesPage() {
     )
   }
 
-  // Fetch profile + all babies
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('selected_baby_id')
-    .eq('id', user.id)
-    .single()
+  // Fetch profile + subscription (for premium check) + all babies
+  const [{ data: profile }, { data: subscription }] = await Promise.all([
+    supabase.from('profiles').select('selected_baby_id, beta_access, beta_access_expires_at').eq('id', user.id).single(),
+    supabase.from('subscriptions').select('status').eq('user_id', user.id).single(),
+  ])
+
+  const isPremium = ['active', 'trialing'].includes(subscription?.status ?? '')
+  const betaExpiry = profile?.beta_access_expires_at ? new Date(profile.beta_access_expires_at) : null
+  const hasBetaAccess = (profile?.beta_access ?? false) && (betaExpiry === null || betaExpiry > new Date())
+  const userIsPremium = isPremium || hasBetaAccess
 
   const { data: babies } = await supabase
     .from('babies')
@@ -184,6 +188,8 @@ export default async function MilestonesPage() {
                 brainArea={m.brain_area}
                 isEmerging={m.is_emerging}
                 isNoted={notedIds.has(m.id)}
+                isPremium={userIsPremium}
+                babyName={activeBaby.name}
               />
             ))}
           </div>
@@ -208,6 +214,8 @@ export default async function MilestonesPage() {
                 brainArea={m.brain_area}
                 isEmerging={false}
                 isNoted={notedIds.has(m.id)}
+                isPremium={userIsPremium}
+                babyName={activeBaby.name}
               />
             ))}
           </div>
