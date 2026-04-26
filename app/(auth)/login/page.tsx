@@ -95,7 +95,7 @@ export default function LoginPage() {
           </div>
 
           {/* Password */}
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 12 }}>
             <label style={{
               display: 'block',
               fontFamily: "'DM Sans', sans-serif",
@@ -125,6 +125,22 @@ export default function LoginPage() {
                 boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          {/* Forgot password */}
+          <div style={{ textAlign: 'right', marginBottom: 24 }}>
+            <a
+              href="/reset-password"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 12,
+                color: 'rgba(240,237,224,0.45)',
+                textDecoration: 'underline',
+                textDecorationColor: 'rgba(240,237,224,0.2)',
+              }}
+            >
+              Forgot your password?
+            </a>
           </div>
 
           {/* Error */}
