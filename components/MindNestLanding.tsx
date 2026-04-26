@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
 interface Particle {
@@ -289,6 +290,7 @@ function SeedOfLifeOrb() {
 
 /* ── Main component ── */
 export default function MindNestLanding() {
+  const router  = useRouter()
   const heroRef = useRef<HTMLDivElement>(null)
   const sc5Ref  = useRef<HTMLDivElement>(null)
   const [siActive, setSiActive] = useState(false)
@@ -328,13 +330,14 @@ export default function MindNestLanding() {
   const handleGsClick = (e: React.MouseEvent) => {
     if (!heroRef.current) return
     portalBurst(e, heroRef.current, { showTransition: true })
+    setTimeout(() => router.push('/signup'), 600)
   }
 
   const handleSiClick = (e: React.MouseEvent) => {
     if (siActive || !heroRef.current) return
     setSiActive(true)
     siBurst(e, heroRef.current)
-    setTimeout(() => setSiActive(false), 1000)
+    setTimeout(() => { setSiActive(false); router.push('/login') }, 600)
   }
 
   const handleS5Click = (e: React.MouseEvent) => {
@@ -344,7 +347,7 @@ export default function MindNestLanding() {
       ringColor: 'rgba(240,237,224,0.5)',
       dotBg: 'rgba(240,237,224,0.7)',
     })
-    setTimeout(() => setS5Active(false), 1000)
+    setTimeout(() => { setS5Active(false); router.push('/signup') }, 600)
   }
 
   return (

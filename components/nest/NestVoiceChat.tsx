@@ -61,7 +61,7 @@ export function NestVoiceChat({
   firstName    = 'there',
   parentType   = null,
   messagesUsed = 0,
-  messageLimit = 20,
+  messageLimit = 10,
   isPremium    = false,
 }: NestVoiceChatProps) {
   const [orbState,           setOrbState]           = useState<OrbState>('idle')
@@ -73,7 +73,7 @@ export function NestVoiceChat({
   const [voiceEnabled,       setVoiceEnabled]       = useState(isPremium)
   const [autoListen,         setAutoListen]         = useState(isPremium)
   const [voiceWarning,       setVoiceWarning]       = useState(false)
-  const [limitReached,       setLimitReached]       = useState(false)
+  const [limitReached,       setLimitReached]       = useState(messagesUsed >= messageLimit)
   const [localMessagesUsed,  setLocalMessagesUsed]  = useState(messagesUsed)
   const [, startTransition]                          = useTransition()
   const router                                       = useRouter()
@@ -429,7 +429,7 @@ export function NestVoiceChat({
             lineHeight: 1.5,
             margin:     0,
           }}>
-            You&apos;ve used all {messageLimit} of your free messages this month.
+            You&apos;ve used all {messageLimit} free messages this month.
           </p>
           <p style={{
             fontFamily: "'DM Sans', sans-serif",
@@ -439,7 +439,7 @@ export function NestVoiceChat({
             margin:     0,
             maxWidth:   280,
           }}>
-            Upgrade for unlimited Nest conversations and voice.
+            Upgrade to keep the conversation going.
           </p>
           <button
             onClick={handleUpgrade}

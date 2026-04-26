@@ -13,7 +13,11 @@ const NAV_ITEMS = [
   { label: 'Profile',    href: '/profile',     Icon: UserIcon          },
 ]
 
-export function DashboardNav() {
+interface DashboardNavProps {
+  isPremium?: boolean
+}
+
+export function DashboardNav({ isPremium = false }: DashboardNavProps) {
   const pathname = usePathname()
 
   return (
@@ -27,7 +31,7 @@ export function DashboardNav() {
           </p>
         </div>
 
-        <nav className="flex-1 px-3 py-5 space-y-0.5">
+        <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(({ label, href, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -54,8 +58,22 @@ export function DashboardNav() {
           })}
         </nav>
 
-        <div className="px-7 py-5 border-t border-sage-100">
-          <p className="text-[10px] text-sage-400 italic">Every age. Every stage.</p>
+        <div className="px-3 pb-3 border-t border-sage-100 pt-3">
+          {/* Upgrade link — only for free users */}
+          {!isPremium && (
+            <Link
+              href="/upgrade"
+              className="
+                flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm
+                text-brand-600 hover:bg-brand-50 transition-colors duration-150
+                border border-brand-100 hover:border-brand-200
+              "
+            >
+              <span className="text-[15px] leading-none">✦</span>
+              <span className="font-medium">Upgrade to Premium</span>
+            </Link>
+          )}
+          <p className="text-[10px] text-sage-400 italic px-4 pt-3">Every age. Every stage.</p>
         </div>
       </aside>
 
@@ -84,6 +102,26 @@ export function DashboardNav() {
               </Link>
             )
           })}
+
+          {/* Mobile upgrade tab — free users only */}
+          {!isPremium && (
+            <Link
+              href="/upgrade"
+              className={`
+                flex-1 flex flex-col items-center gap-1 pt-3 pb-5
+                text-[10px] tracking-wide transition-colors
+                ${pathname === '/upgrade' ? 'text-brand-600' : 'text-brand-400'}
+              `}
+            >
+              <span className="text-[18px] leading-none">✦</span>
+              <span className={pathname === '/upgrade' ? 'font-medium' : ''}>Upgrade</span>
+              <span
+                className={`w-4 h-0.5 rounded-full transition-colors ${
+                  pathname === '/upgrade' ? 'bg-brand-600' : 'bg-transparent'
+                }`}
+              />
+            </Link>
+          )}
         </div>
       </nav>
     </>

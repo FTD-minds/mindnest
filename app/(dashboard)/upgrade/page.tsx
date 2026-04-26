@@ -5,14 +5,23 @@ import { useRouter } from 'next/navigation'
 
 type Plan = 'monthly' | 'annual' | 'lifetime'
 
+const FREE_FEATURES = [
+  '10 Nest messages / month',
+  'Basic activities',
+  'Basic milestones',
+  'No voice',
+  'No community',
+]
+
 const PLANS: {
-  id:       Plan
-  label:    string
-  badge?:   string
-  price:    string
-  period:   string
-  monthly:  string
-  features: string[]
+  id:        Plan
+  label:     string
+  badge?:    string
+  price:     string
+  period:    string
+  monthly:   string
+  features:  string[]
+  extras:    string[]   // items that are upgrades vs free tier
   highlight: boolean
 }[] = [
   {
@@ -30,6 +39,7 @@ const PLANS: {
       'Community feed',
       'Cancel any time',
     ],
+    extras:    ['Unlimited Nest conversations', 'Voice — hear Nest speak', 'All daily activities', 'Community feed'],
     highlight: false,
   },
   {
@@ -47,6 +57,7 @@ const PLANS: {
       'Community feed',
       'Billed once a year',
     ],
+    extras:    ['Unlimited Nest conversations', 'Voice — hear Nest speak', 'All daily activities', 'Community feed'],
     highlight: true,
   },
   {
@@ -64,6 +75,7 @@ const PLANS: {
       'Community feed',
       'All future updates included',
     ],
+    extras:    ['Unlimited Nest conversations', 'Voice — hear Nest speak', 'All daily activities', 'Community feed'],
     highlight: false,
   },
 ]
@@ -150,25 +162,121 @@ export default function UpgradePage() {
       {/* ── Plan cards ── */}
       <div style={{
         display:             'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap:                 16,
         width:               '100%',
-        maxWidth:            820,
+        maxWidth:            960,
       }}>
+
+        {/* ── Free tier (current plan indicator) ── */}
+        <div style={{
+          background:    'rgba(240,237,224,0.03)',
+          border:        '1px solid rgba(240,237,224,0.08)',
+          borderRadius:  20,
+          padding:       '28px 24px 24px',
+          display:       'flex',
+          flexDirection: 'column',
+          opacity:       0.75,
+        }}>
+          <p style={{
+            fontFamily:    "'DM Sans', sans-serif",
+            fontSize:      10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color:         'rgba(240,237,224,0.3)',
+            marginBottom:  14,
+          }}>
+            Your current plan
+          </p>
+
+          <p style={{
+            fontFamily:   "'Cormorant Garamond', serif",
+            fontSize:     22,
+            fontWeight:   500,
+            color:        'rgba(240,237,224,0.6)',
+            marginBottom: 8,
+          }}>
+            Free
+          </p>
+
+          <div style={{ marginBottom: 6 }}>
+            <span style={{
+              fontFamily:    "'DM Sans', sans-serif",
+              fontSize:      32,
+              fontWeight:    600,
+              color:         'rgba(240,237,224,0.6)',
+              letterSpacing: '-0.02em',
+            }}>
+              $0
+            </span>
+            <span style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize:   13,
+              color:      'rgba(240,237,224,0.25)',
+              marginLeft: 6,
+            }}>
+              forever
+            </span>
+          </div>
+
+          <p style={{
+            fontFamily:   "'DM Sans', sans-serif",
+            fontSize:     12,
+            color:        'rgba(240,237,224,0.25)',
+            marginBottom: 20,
+          }}>
+            Limited access
+          </p>
+
+          <div style={{ height: 1, background: 'rgba(240,237,224,0.06)', marginBottom: 18 }} />
+
+          <ul style={{
+            listStyle: 'none', padding: 0, margin: '0 0 24px',
+            display: 'flex', flexDirection: 'column', gap: 10, flex: 1,
+          }}>
+            {FREE_FEATURES.map(f => (
+              <li key={f} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 9,
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize:   13,
+                color:      'rgba(240,237,224,0.35)',
+                lineHeight: 1.4,
+              }}>
+                <span style={{ color: 'rgba(240,237,224,0.2)', flexShrink: 0, marginTop: 1 }}>–</span>
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <div style={{
+            width:      '100%',
+            border:     '1px solid rgba(240,237,224,0.08)',
+            borderRadius: 50,
+            padding:    '13px 24px',
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize:   13,
+            color:      'rgba(240,237,224,0.25)',
+            textAlign:  'center',
+            letterSpacing: '0.04em',
+          }}>
+            Current plan
+          </div>
+        </div>
+
+        {/* ── Paid plans ── */}
         {PLANS.map(plan => (
           <div
             key={plan.id}
             style={{
-              position:     'relative',
-              background:   plan.highlight
+              position:      'relative',
+              background:    plan.highlight
                 ? 'rgba(157,224,157,0.08)'
                 : 'rgba(240,237,224,0.04)',
-              border:       `1px solid ${plan.highlight ? 'rgba(157,224,157,0.35)' : 'rgba(240,237,224,0.12)'}`,
-              borderRadius: 20,
-              padding:      '28px 24px 24px',
-              display:      'flex',
-              flexDirection:'column',
-              gap:          0,
+              border:        `1px solid ${plan.highlight ? 'rgba(157,224,157,0.35)' : 'rgba(240,237,224,0.12)'}`,
+              borderRadius:  20,
+              padding:       '28px 24px 24px',
+              display:       'flex',
+              flexDirection: 'column',
             }}
           >
             {/* Badge */}
@@ -187,11 +295,11 @@ export default function UpgradePage() {
 
             {/* Plan name */}
             <p style={{
-              fontFamily:    "'Cormorant Garamond', serif",
-              fontSize:      22,
-              fontWeight:    500,
-              color:         '#f0ede0',
-              marginBottom:  8,
+              fontFamily:   "'Cormorant Garamond', serif",
+              fontSize:     22,
+              fontWeight:   500,
+              color:        '#f0ede0',
+              marginBottom: 8,
             }}>
               {plan.label}
             </p>
@@ -199,10 +307,10 @@ export default function UpgradePage() {
             {/* Price */}
             <div style={{ marginBottom: 6 }}>
               <span style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize:   32,
-                fontWeight: 600,
-                color:      '#f0ede0',
+                fontFamily:    "'DM Sans', sans-serif",
+                fontSize:      32,
+                fontWeight:    600,
+                color:         '#f0ede0',
                 letterSpacing: '-0.02em',
               }}>
                 {plan.price}
@@ -234,32 +342,33 @@ export default function UpgradePage() {
               marginBottom: 18,
             }} />
 
-            {/* Features */}
+            {/* Features — extras highlighted */}
             <ul style={{
-              listStyle: 'none',
-              padding:   0,
-              margin:    '0 0 24px',
-              display:   'flex',
-              flexDirection: 'column',
-              gap:       10,
-              flex:      1,
+              listStyle: 'none', padding: 0, margin: '0 0 24px',
+              display: 'flex', flexDirection: 'column', gap: 10, flex: 1,
             }}>
-              {plan.features.map(f => (
-                <li key={f} style={{
-                  display:    'flex',
-                  alignItems: 'flex-start',
-                  gap:        9,
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize:   13,
-                  color:      'rgba(240,237,224,0.7)',
-                  lineHeight: 1.4,
-                }}>
-                  <span style={{ color: plan.highlight ? '#9de09d' : 'rgba(240,237,224,0.45)' }}>
-                    {CHECK}
-                  </span>
-                  {f}
-                </li>
-              ))}
+              {plan.features.map(f => {
+                const isExtra = plan.extras.includes(f)
+                return (
+                  <li key={f} style={{
+                    display:    'flex',
+                    alignItems: 'flex-start',
+                    gap:        9,
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize:   13,
+                    color:      isExtra
+                      ? (plan.highlight ? '#c5efc5' : 'rgba(240,237,224,0.9)')
+                      : 'rgba(240,237,224,0.55)',
+                    lineHeight:  1.4,
+                    fontWeight:  isExtra ? 500 : 400,
+                  }}>
+                    <span style={{ color: plan.highlight ? '#9de09d' : 'rgba(240,237,224,0.45)', flexShrink: 0, marginTop: 1 }}>
+                      {CHECK}
+                    </span>
+                    {f}
+                  </li>
+                )
+              })}
             </ul>
 
             {/* CTA button */}
