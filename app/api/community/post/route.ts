@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin-client'
 import { claude } from '@/lib/claude'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -27,8 +28,6 @@ function detectPostType(content: string, isMemoryCard: boolean): 'moment' | 'que
 }
 
 // ── Prompts ──────────────────────────────────────────────────────────────────
-
-const MODERATION_PROMPT = `You are a content moderator for MindNest, a warm premium parenting community for mothers. Respond ONLY with valid JSON.`
 
 const NEST_COMMUNITY_PROMPT = `You are Nest, the warm AI coach inside MindNest, responding to a parent who just shared something in the community feed.
 
@@ -75,30 +74,25 @@ export async function POST(request: Request) {
 
   const trimmedContent = (content as string).trim()
 
-  // ── AI content moderation ──────────────────────────────────────────────────
+  // ── AI content moderation via Edge Function ───────────────────────────────
   try {
-    const modResponse = await claude.messages.create({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 80,
-      system:     MODERATION_PROMPT,
-      messages:   [{
-        role:    'user',
-        content: `Review this post. Return { "approved": boolean, "reason": string }. Approve: warm supportive parenting content, questions about baby development, milestone celebrations. Reject: profanity, negativity about MindNest or Nest AI, bullying, spam, harmful medical claims, anything making parents feel judged.\n\nPost: ${trimmedContent}`,
-      }],
+    const db = createAdminClient()
+    const { data: modData, error: modError } = await db.functions.invoke('moderate-post', {
+      body: { content: trimmedContent },
     })
-    const modText   = modResponse.content[0].type === 'text' ? modResponse.content[0].text.trim() : ''
-    // Strip markdown code fences if present
-    const cleaned   = modText.replace(/^```[^\n]*\n?/m, '').replace(/```$/m, '').trim()
-    const modResult = JSON.parse(cleaned) as { approved: boolean; reason?: string }
 
-    if (!modResult.approved) {
+    if (!modError && modData && modData.approved === false) {
       return NextResponse.json(
-        { error: 'moderation_failed', message: 'Your post did not meet our community guidelines — keep it warm and supportive!' },
+        {
+          error:   'moderation_failed',
+          message: "That post didn't quite fit our community guidelines — keep it kind and supportive!",
+        },
         { status: 400 },
       )
     }
+    // modError or unexpected shape → fail open (post allowed through)
   } catch {
-    // Fail open — if moderation errors, allow the post through
+    // Network / deployment error → fail open
   }
 
   // ── Compute metadata ──────────────────────────────────────────────────────

@@ -390,7 +390,7 @@ export function CommunityFeed({
       if (!res.ok) {
         setError(
           data.error === 'moderation_failed'
-            ? "Your post didn't make it through — keep it kind and supportive!"
+            ? "That post didn't quite fit our community guidelines — keep it kind and supportive!"
             : (data.error ?? 'Something went wrong. Please try again.'),
         )
         return
