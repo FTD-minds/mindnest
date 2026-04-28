@@ -36,7 +36,7 @@ interface VoiceSelectorProps {
 }
 
 export function VoiceSelector({ initialVoice, isPremium }: VoiceSelectorProps) {
-  const [selected, setSelected] = useState(initialVoice || 'Sarah')
+  const [selected, setSelected] = useState(initialVoice || 'Bella')
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
   const supabase = createClient()

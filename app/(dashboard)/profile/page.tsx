@@ -170,7 +170,7 @@ export default async function ProfilePage() {
 
       {/* ── Voice Settings ──────────────────────────────────────────────── */}
       <VoiceSelector
-        initialVoice={profile?.preferred_voice ?? 'Sarah'}
+        initialVoice={profile?.preferred_voice ?? 'Bella'}
         isPremium={isPremium}
       />
 

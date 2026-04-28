@@ -11,7 +11,7 @@ export default async function NestPage() {
   let parentType:     string|null = null
   let isPremium:      boolean     = false
   let messagesUsed:   number      = 0
-  let preferredVoice: string      = 'Sarah'
+  let preferredVoice: string      = 'Bella'
 
   if (user) {
     const startOfMonth = new Date()
@@ -44,7 +44,7 @@ export default async function NestPage() {
     parentType     = profile?.parent_type ?? null
     isPremium      = ['active', 'trialing'].includes(subscription?.status ?? '') || (profile?.beta_access ?? false)
     messagesUsed   = usageCount ?? 0
-    preferredVoice = profile?.preferred_voice ?? 'Sarah'
+    preferredVoice = profile?.preferred_voice ?? 'Bella'
   }
 
   return (

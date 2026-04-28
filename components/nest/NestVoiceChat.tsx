@@ -64,7 +64,7 @@ export function NestVoiceChat({
   messagesUsed   = 0,
   messageLimit   = 10,
   isPremium      = false,
-  preferredVoice = 'Sarah',
+  preferredVoice = 'Bella',
 }: NestVoiceChatProps) {
   const [orbState,      setOrbState]      = useState<OrbState>('idle')
   const [selectedVoice, setSelectedVoice] = useState(
@@ -272,7 +272,7 @@ export function NestVoiceChat({
     setTextInput('')
   }
 
-  const selectedVoiceName = VOICES.find(v => v.id === selectedVoice)?.name ?? 'Sarah'
+  const selectedVoiceName = VOICES.find(v => v.id === selectedVoice)?.name ?? 'Bella'
   const usagePercent      = Math.min(100, (localMessagesUsed / messageLimit) * 100)
   const nearLimit         = !isPremium && localMessagesUsed >= messageLimit - 4
 
