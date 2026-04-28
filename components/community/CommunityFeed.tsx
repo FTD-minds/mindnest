@@ -96,8 +96,6 @@ function ageBadge(ageMonths: number | null): string | null {
 // ── PostCard ──────────────────────────────────────────────────────────────────
 
 function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }) {
-  const [liked,       setLiked]       = useState(post.liked_by_me)
-  const [likeCount,   setLikeCount]   = useState(post.likes_count)
   const [myReactions, setMyReactions] = useState<Set<string>>(new Set(post.my_reactions))
   const [reactions,   setReactions]   = useState<Reactions>(() => {
     const r = post.reactions
@@ -107,33 +105,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
       sending_love: r?.sending_love ?? 0,
     }
   })
-  const [likeLoading, setLikeLoading]         = useState(false)
-  const [reactLoading, setReactLoading]       = useState<string | null>(null)
-
-  async function handleLike() {
-    if (likeLoading) return
-    setLikeLoading(true)
-    setLiked(prev => {
-      const nowLiked = !prev
-      setLikeCount(c => nowLiked ? c + 1 : c - 1)
-      return nowLiked
-    })
-    try {
-      await fetch('/api/community/like', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ postId: post.id }),
-      })
-    } catch {
-      setLiked(prev => {
-        const reverted = !prev
-        setLikeCount(c => reverted ? c + 1 : c - 1)
-        return reverted
-      })
-    } finally {
-      setLikeLoading(false)
-    }
-  }
+  const [reactLoading, setReactLoading] = useState<string | null>(null)
 
   async function handleReact(type: keyof Reactions) {
     if (reactLoading) return
@@ -250,27 +222,8 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions — Heart / Me too / Sending love */}
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Heart (like) */}
-          <button
-            onClick={handleLike}
-            disabled={likeLoading}
-            className={`flex items-center gap-1 text-[11px] transition-colors ${
-              liked ? 'text-brand-600' : 'text-sage-400 hover:text-brand-500'
-            }`}
-          >
-            <svg
-              width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-              className={liked ? 'fill-brand-500 stroke-brand-600' : ''}
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-            </svg>
-            <span>{likeCount > 0 ? likeCount : ''} {likeCount === 1 ? 'like' : likeCount > 1 ? 'likes' : 'Like'}</span>
-          </button>
-
-          {/* Reactions */}
           {REACTION_CONFIG.map(({ key, emoji, label }) => {
             const active = myReactions.has(key)
             const count  = reactions[key] ?? 0
@@ -305,7 +258,7 @@ function ProductCard({ product }: { product: AffiliateProduct }) {
 
   return (
     <a
-      href={product.affiliate_url}
+      href={`/api/affiliate/click?id=${product.id}`}
       target="_blank"
       rel="noopener noreferrer"
       className="block bg-white rounded-2xl border border-sage-200 overflow-hidden hover:border-brand-300 hover:shadow-sm transition-all group"

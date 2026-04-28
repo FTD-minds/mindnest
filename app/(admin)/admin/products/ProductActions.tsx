@@ -15,6 +15,14 @@ interface Product {
   is_active:      boolean
 }
 
+interface ProductActionsProps {
+  products:             Product[]
+  clicksMap:            Record<string, number>
+  totalClicksThisMonth: number
+  topProductName:       string
+  topProductClicks:     number
+}
+
 const EMPTY_FORM = {
   title:          '',
   description:    '',
@@ -26,7 +34,13 @@ const EMPTY_FORM = {
   is_active:      true,
 }
 
-export function ProductActions({ products }: { products: Product[] }) {
+export function ProductActions({
+  products,
+  clicksMap,
+  totalClicksThisMonth,
+  topProductName,
+  topProductClicks,
+}: ProductActionsProps) {
   const router = useRouter()
   const [showForm, setShowForm]   = useState(false)
   const [form, setForm]           = useState(EMPTY_FORM)
@@ -84,8 +98,25 @@ export function ProductActions({ products }: { products: Product[] }) {
     outline-none focus:border-[#1c2e1c] transition-colors
   `
 
+  const totalClicks = Object.values(clicksMap).reduce((s, n) => s + n, 0)
+
   return (
     <div>
+      {/* ── Analytics summary ── */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label: 'Total products',          value: products.length,       sub: `${products.filter(p => p.is_active).length} active` },
+          { label: 'Clicks this month',        value: totalClicksThisMonth,  sub: `${totalClicks} all time` },
+          { label: 'Top product',              value: topProductName,        sub: topProductClicks > 0 ? `${topProductClicks} clicks` : 'No clicks yet' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 px-5 py-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">{stat.label}</p>
+            <p className="text-xl font-semibold text-gray-900 truncate">{stat.value}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{stat.sub}</p>
+          </div>
+        ))}
+      </div>
+
       {/* ── Header actions ── */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -164,6 +195,7 @@ export function ProductActions({ products }: { products: Product[] }) {
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Title</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Category</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Age range</th>
+              <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Clicks</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Status</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Actions</th>
             </tr>
@@ -180,6 +212,9 @@ export function ProductActions({ products }: { products: Product[] }) {
                 <td className="px-5 py-3 text-gray-500">{p.category ?? '—'}</td>
                 <td className="px-5 py-3 text-gray-500 text-[11px]">
                   {p.age_min_months}–{p.age_max_months} mo
+                </td>
+                <td className="px-5 py-3">
+                  <span className="font-medium text-gray-700">{clicksMap[p.id] ?? 0}</span>
                 </td>
                 <td className="px-5 py-3">
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
@@ -201,7 +236,7 @@ export function ProductActions({ products }: { products: Product[] }) {
             ))}
             {products.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-400">
+                <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">
                   No products yet. Add one above.
                 </td>
               </tr>
