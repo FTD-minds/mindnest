@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { LinkTwinsButton } from '@/components/profile/LinkTwinsButton'
+import { VoiceSelector } from '@/components/profile/VoiceSelector'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -32,23 +33,31 @@ export default async function ProfilePage() {
     )
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, email, selected_baby_id')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: subscription }, { data: babies }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('full_name, email, selected_baby_id, preferred_voice, beta_access')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', user.id)
+      .single(),
+    supabase
+      .from('babies')
+      .select('id, name, date_of_birth, gender, is_twin, twin_sibling_id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }),
+  ])
 
-  const { data: babies } = await supabase
-    .from('babies')
-    .select('id, name, date_of_birth, gender, is_twin, twin_sibling_id')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true })
-
-  const allBabies = babies ?? []
+  const allBabies  = babies ?? []
   const canAddMore = allBabies.length < 6
-  // Can only offer twin-linking if there are exactly 2+ unlinked babies
   const unlinkedBabies = allBabies.filter(b => !b.is_twin)
-  const canLinkTwins = unlinkedBabies.length >= 2
+  const canLinkTwins   = unlinkedBabies.length >= 2
+  const isPremium =
+    ['active', 'trialing'].includes(subscription?.status ?? '') ||
+    (profile?.beta_access ?? false)
 
   return (
     <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
@@ -78,9 +87,9 @@ export default async function ProfilePage() {
 
         <div className="space-y-3">
           {allBabies.map(baby => {
-            const months  = getAgeMonths(baby.date_of_birth)
+            const months     = getAgeMonths(baby.date_of_birth)
             const isSelected = baby.id === (profile?.selected_baby_id ?? allBabies[0]?.id)
-            const twin    = baby.twin_sibling_id
+            const twin       = baby.twin_sibling_id
               ? allBabies.find(b => b.id === baby.twin_sibling_id)
               : null
 
@@ -159,17 +168,27 @@ export default async function ProfilePage() {
         )}
       </section>
 
+      {/* ── Voice Settings ──────────────────────────────────────────────── */}
+      <VoiceSelector
+        initialVoice={profile?.preferred_voice ?? 'Sarah'}
+        isPremium={isPremium}
+      />
+
       {/* ── Subscription ────────────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-sage-200 px-6 py-5">
         <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Subscription</p>
         <div className="flex items-center justify-between">
-          <p className="text-sm text-brand-900">Free plan</p>
-          <Link
-            href="/upgrade"
-            className="text-[11px] uppercase tracking-wider text-brand-600 hover:text-brand-700"
-          >
-            Upgrade →
-          </Link>
+          <p className="text-sm text-brand-900">
+            {isPremium ? 'Premium plan' : 'Free plan'}
+          </p>
+          {!isPremium && (
+            <Link
+              href="/upgrade"
+              className="text-[11px] uppercase tracking-wider text-brand-600 hover:text-brand-700"
+            >
+              Upgrade →
+            </Link>
+          )}
         </div>
       </section>
 

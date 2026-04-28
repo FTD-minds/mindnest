@@ -50,22 +50,26 @@ function buildInitialMessage(firstName: string, parentType: string | null): Chat
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface NestVoiceChatProps {
-  firstName?:    string
-  parentType?:   string | null
-  messagesUsed?: number
-  messageLimit?: number
-  isPremium?:    boolean
+  firstName?:      string
+  parentType?:     string | null
+  messagesUsed?:   number
+  messageLimit?:   number
+  isPremium?:      boolean
+  preferredVoice?: string
 }
 
 export function NestVoiceChat({
-  firstName    = 'there',
-  parentType   = null,
-  messagesUsed = 0,
-  messageLimit = 10,
-  isPremium    = false,
+  firstName      = 'there',
+  parentType     = null,
+  messagesUsed   = 0,
+  messageLimit   = 10,
+  isPremium      = false,
+  preferredVoice = 'Sarah',
 }: NestVoiceChatProps) {
-  const [orbState,           setOrbState]           = useState<OrbState>('idle')
-  const [selectedVoice,      setSelectedVoice]      = useState(VOICES[0].id)
+  const [orbState,      setOrbState]      = useState<OrbState>('idle')
+  const [selectedVoice, setSelectedVoice] = useState(
+    () => VOICES.find(v => v.name === preferredVoice)?.id ?? VOICES[0].id
+  )
   const [messages,           setMessages]           = useState<ChatMessage[]>(() => [buildInitialMessage(firstName, parentType)])
   const [textInput,          setTextInput]          = useState('')
   const [error,              setError]              = useState<string | null>(null)
@@ -351,42 +355,16 @@ export function NestVoiceChat({
           {limitReached ? 'Monthly limit reached' : STATUS[orbState]}
         </p>
 
-        {/* Active voice name */}
+        {/* Active voice label — change voice in Profile settings */}
         <p style={{
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: 13, fontStyle: 'italic',
           color: (voiceEnabled && !limitReached) ? 'rgba(240,237,224,0.3)' : 'rgba(240,237,224,0.15)',
-          marginBottom: 14,
+          marginBottom: 0,
           textDecoration: voiceEnabled ? 'none' : 'line-through',
         }}>
-          {selectedVoiceName}
+          {voiceEnabled ? `Voice: ${selectedVoiceName}` : 'Voice off'}
         </p>
-
-        {/* Voice selector pills */}
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center', opacity: (voiceEnabled && !limitReached) ? 1 : 0.4, transition: 'opacity 0.2s' }}>
-          {VOICES.map(v => (
-            <button
-              key={v.id}
-              onClick={() => setSelectedVoice(v.id)}
-              title={v.label}
-              disabled={!voiceEnabled || limitReached}
-              style={{
-                background:    selectedVoice === v.id ? 'rgba(240,237,224,0.14)' : 'transparent',
-                border:        `1px solid ${selectedVoice === v.id ? 'rgba(240,237,224,0.38)' : 'rgba(240,237,224,0.1)'}`,
-                borderRadius:  50,
-                padding:       '5px 14px',
-                fontFamily:    "'DM Sans', sans-serif",
-                fontSize:      11,
-                color:         selectedVoice === v.id ? '#f0ede0' : 'rgba(240,237,224,0.38)',
-                cursor:        (voiceEnabled && !limitReached) ? 'pointer' : 'default',
-                transition:    'all 0.2s',
-                letterSpacing: '0.03em',
-              }}
-            >
-              {v.name}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ── Voice locked warning ── */}

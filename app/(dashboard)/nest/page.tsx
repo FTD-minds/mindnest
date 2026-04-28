@@ -7,10 +7,11 @@ export default async function NestPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let firstName:    string      = 'there'
-  let parentType:   string|null = null
-  let isPremium:    boolean     = false
-  let messagesUsed: number      = 0
+  let firstName:      string      = 'there'
+  let parentType:     string|null = null
+  let isPremium:      boolean     = false
+  let messagesUsed:   number      = 0
+  let preferredVoice: string      = 'Sarah'
 
   if (user) {
     const startOfMonth = new Date()
@@ -24,7 +25,7 @@ export default async function NestPage() {
     ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('full_name, parent_type, beta_access')
+        .select('full_name, parent_type, beta_access, preferred_voice')
         .eq('id', user.id)
         .single(),
       supabase
@@ -39,10 +40,11 @@ export default async function NestPage() {
         .gte('created_at', startOfMonth.toISOString()),
     ])
 
-    firstName    = profile?.full_name?.split(' ')[0] ?? 'there'
-    parentType   = profile?.parent_type ?? null
-    isPremium    = ['active', 'trialing'].includes(subscription?.status ?? '') || (profile?.beta_access ?? false)
-    messagesUsed = usageCount ?? 0
+    firstName      = profile?.full_name?.split(' ')[0] ?? 'there'
+    parentType     = profile?.parent_type ?? null
+    isPremium      = ['active', 'trialing'].includes(subscription?.status ?? '') || (profile?.beta_access ?? false)
+    messagesUsed   = usageCount ?? 0
+    preferredVoice = profile?.preferred_voice ?? 'Sarah'
   }
 
   return (
@@ -53,6 +55,7 @@ export default async function NestPage() {
         messagesUsed={messagesUsed}
         messageLimit={FREE_TIER_LIMIT}
         isPremium={isPremium}
+        preferredVoice={preferredVoice}
       />
     </div>
   )
