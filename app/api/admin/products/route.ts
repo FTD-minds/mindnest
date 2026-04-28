@@ -79,3 +79,22 @@ export async function PATCH(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ product })
 }
+
+export async function DELETE(request: Request) {
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+  const db = createAdminClient()
+  const { error } = await db
+    .from('affiliate_products')
+    .delete()
+    .eq('id', id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
