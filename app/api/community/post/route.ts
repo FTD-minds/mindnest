@@ -51,12 +51,14 @@ export async function POST(request: Request) {
     post_type: clientPostType,
     is_memory_card = false,
     milestone_id   = null,
+    category_id    = null,
   } = body as {
     content:        unknown
     babyAgeMonths?: unknown
     post_type?:     string
     is_memory_card?: boolean
     milestone_id?:  string | null
+    category_id?:   string | null
   }
 
   if (!content || typeof content !== 'string' || content.trim().length === 0) {
@@ -127,6 +129,7 @@ export async function POST(request: Request) {
       post_type:       postType,
       is_memory_card:  is_memory_card,
       milestone_id:    milestone_id ?? null,
+      category_id:     category_id  ?? null,
       is_approved:     true,
       nest_reply:      nestReply,
       nest_replied_at: nestReply ? new Date().toISOString() : null,
@@ -158,7 +161,8 @@ export async function GET(request: Request) {
     .from('community_posts')
     .select(`
       id, content, baby_age_months, age_group, post_type, likes_count, reactions,
-      is_memory_card, milestone_id, nest_reply, nest_replied_at, created_at, user_id,
+      is_memory_card, milestone_id, category_id, comment_count,
+      nest_reply, nest_replied_at, created_at, user_id,
       profiles!inner ( full_name )
     `)
     .eq('is_approved', true)

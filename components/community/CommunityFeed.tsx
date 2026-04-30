@@ -11,6 +11,13 @@ interface Reactions {
   sending_love: number
 }
 
+export interface Category {
+  id:   string
+  name: string
+  icon: string
+  slug: string
+}
+
 interface Post {
   id:              string
   content:         string
@@ -21,12 +28,26 @@ interface Post {
   reactions:       Reactions
   is_memory_card:  boolean
   milestone_id:    string | null
+  category_id:     string | null
+  comment_count:   number
   nest_reply:      string | null
   created_at:      string
   user_id:         string
   profiles:        { full_name: string } | null
   liked_by_me:     boolean
   my_reactions:    string[]
+}
+
+interface Comment {
+  id:           string
+  post_id:      string
+  parent_id:    string | null
+  content:      string
+  reactions:    Reactions
+  my_reactions: string[]
+  created_at:   string
+  profiles:     { full_name: string } | null
+  replies?:     Comment[]
 }
 
 interface AffiliateProduct {
@@ -41,16 +62,19 @@ interface AffiliateProduct {
 }
 
 interface CommunityFeedProps {
-  initialStagePosts:  Post[]
-  initialMemoryPosts: Post[]
-  products:           AffiliateProduct[]
-  currentUserId:      string
-  babyAgeMonths?:     number | null
-  ageGroup?:          string | null
+  initialStagePosts:   Post[]
+  initialMemoryPosts:  Post[]
+  products:            AffiliateProduct[]
+  categories:          Category[]
+  currentUserId:       string
+  babyAgeMonths?:      number | null
+  ageGroup?:           string | null
+  defaultCategorySlug?: string | null
 }
 
 type Tab      = 'stage' | 'milestones' | 'for_you'
 type PostType = 'moment' | 'question'
+type Sort     = 'newest' | 'top'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,35 +117,470 @@ function ageBadge(ageMonths: number | null): string | null {
   return `${y}y${m ? ` ${m}mo` : ''}`
 }
 
+function totalReactions(r: Reactions): number {
+  return (r.heart ?? 0) + (r.me_too ?? 0) + (r.sending_love ?? 0)
+}
+
+function nestComments(flat: Comment[]): Comment[] {
+  const top     = flat.filter(c => !c.parent_id)
+  const replies = flat.filter(c =>  c.parent_id)
+  return top.map(c => ({ ...c, replies: replies.filter(r => r.parent_id === c.id) }))
+}
+
+const REACTION_CONFIG: { key: keyof Reactions; emoji: string; label: string }[] = [
+  { key: 'heart',        emoji: '♥',  label: 'Heart'        },
+  { key: 'me_too',       emoji: '🙋', label: 'Me too'       },
+  { key: 'sending_love', emoji: '🤍', label: 'Sending love' },
+]
+
+// ── ReactionRow — shared between posts and comments ───────────────────────────
+
+function ReactionRow({
+  reactions,
+  myReactions,
+  onReact,
+  loading,
+}: {
+  reactions:   Reactions
+  myReactions: string[]
+  onReact:     (type: keyof Reactions) => void
+  loading:     string | null
+}) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {REACTION_CONFIG.map(({ key, emoji, label }) => {
+        const active = myReactions.includes(key)
+        const count  = reactions[key] ?? 0
+        return (
+          <button
+            key={key}
+            onClick={() => onReact(key)}
+            disabled={loading !== null}
+            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-all ${
+              active
+                ? 'border-brand-300 bg-brand-50 text-brand-700'
+                : 'border-sage-200 text-sage-400 hover:border-sage-300 hover:text-sage-600'
+            } disabled:opacity-50`}
+          >
+            <span>{emoji}</span>
+            <span>{count > 0 ? count : label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── CommentThread ─────────────────────────────────────────────────────────────
+
+function CommentThread({
+  postId,
+  initialCount,
+  onCommentAdded,
+}: {
+  postId:          string
+  initialCount:    number
+  onCommentAdded:  () => void
+}) {
+  const [open,         setOpen]         = useState(false)
+  const [loaded,       setLoaded]       = useState(false)
+  const [loading,      setLoading]      = useState(false)
+  const [comments,     setComments]     = useState<Comment[]>([])
+  const [localCount,   setLocalCount]   = useState(initialCount)
+  const [sort,         setSort]         = useState<Sort>('newest')
+  const [draft,        setDraft]        = useState('')
+  const [submitting,   setSubmitting]   = useState(false)
+  const [submitError,  setSubmitError]  = useState<string | null>(null)
+  const [replyingTo,   setReplyingTo]   = useState<string | null>(null)
+  const [replyDraft,   setReplyDraft]   = useState('')
+  const [replyingErr,  setReplyingErr]  = useState<string | null>(null)
+
+  // Per-comment reaction state: commentId → { reactions, myReactions, loading }
+  const [commentReactions, setCommentReactions] = useState<
+    Record<string, { reactions: Reactions; myReactions: string[]; loading: string | null }>
+  >({})
+
+  async function loadComments() {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/community/comments?postId=${postId}`)
+      const data = await res.json()
+      if (!res.ok) return
+      const flat: Comment[] = data.comments ?? []
+      setComments(flat)
+      // Build initial reaction state
+      const map: typeof commentReactions = {}
+      for (const c of flat) {
+        map[c.id] = {
+          reactions:   { heart: c.reactions?.heart ?? 0, me_too: c.reactions?.me_too ?? 0, sending_love: c.reactions?.sending_love ?? 0 },
+          myReactions: c.my_reactions ?? [],
+          loading:     null,
+        }
+      }
+      setCommentReactions(map)
+    } finally {
+      setLoading(false)
+      setLoaded(true)
+    }
+  }
+
+  function handleToggle() {
+    const next = !open
+    setOpen(next)
+    if (next && !loaded) loadComments()
+  }
+
+  async function handleCommentReact(commentId: string, type: keyof Reactions) {
+    const current = commentReactions[commentId]
+    if (!current || current.loading) return
+
+    const hadIt = current.myReactions.includes(type)
+
+    // Optimistic
+    setCommentReactions(prev => ({
+      ...prev,
+      [commentId]: {
+        ...prev[commentId],
+        loading:     type,
+        myReactions: hadIt
+          ? prev[commentId].myReactions.filter(r => r !== type)
+          : [...prev[commentId].myReactions, type],
+        reactions: {
+          ...prev[commentId].reactions,
+          [type]: Math.max(0, (prev[commentId].reactions[type] ?? 0) + (hadIt ? -1 : 1)),
+        },
+      },
+    }))
+
+    try {
+      const res  = await fetch('/api/community/comment-react', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ commentId, reactionType: type }),
+      })
+      const data = await res.json()
+      if (res.ok && data.counts) {
+        setCommentReactions(prev => ({
+          ...prev,
+          [commentId]: { ...prev[commentId], reactions: data.counts, loading: null },
+        }))
+        return
+      }
+    } catch {
+      // Revert
+      setCommentReactions(prev => ({
+        ...prev,
+        [commentId]: {
+          ...prev[commentId],
+          loading:     null,
+          myReactions: hadIt
+            ? [...prev[commentId].myReactions, type]
+            : prev[commentId].myReactions.filter(r => r !== type),
+          reactions: {
+            ...prev[commentId].reactions,
+            [type]: Math.max(0, (prev[commentId].reactions[type] ?? 0) + (hadIt ? 1 : -1)),
+          },
+        },
+      }))
+    }
+    setCommentReactions(prev => ({ ...prev, [commentId]: { ...prev[commentId], loading: null } }))
+  }
+
+  async function submitComment(content: string, parentId: string | null) {
+    const trimmed = content.trim()
+    if (!trimmed) return
+
+    setSubmitting(true)
+    if (parentId) setReplyingErr(null)
+    else setSubmitError(null)
+
+    try {
+      const res = await fetch('/api/community/comments', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ postId, content: trimmed, parentId }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        const msg = data.error === 'moderation_failed'
+          ? "That comment didn't quite fit our guidelines — keep it kind and supportive!"
+          : (data.message ?? data.error ?? 'Something went wrong.')
+        if (parentId) setReplyingErr(msg)
+        else setSubmitError(msg)
+        return
+      }
+
+      const newComment: Comment = { ...data.comment, replies: [] }
+      setComments(prev => [...prev, newComment])
+      setCommentReactions(prev => ({
+        ...prev,
+        [newComment.id]: { reactions: { heart: 0, me_too: 0, sending_love: 0 }, myReactions: [], loading: null },
+      }))
+      setLocalCount(c => c + 1)
+      onCommentAdded()
+
+      if (parentId) { setReplyDraft(''); setReplyingTo(null) }
+      else setDraft('')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Sort logic
+  const nested = nestComments(comments)
+  const sorted = [...nested].sort((a, b) => {
+    if (sort === 'top') return totalReactions(commentReactions[b.id]?.reactions ?? b.reactions) - totalReactions(commentReactions[a.id]?.reactions ?? a.reactions)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const countLabel = localCount === 0
+    ? 'Reply'
+    : localCount === 1 ? '1 reply' : `${localCount} replies`
+
+  return (
+    <>
+      {/* Toggle button in the actions row */}
+      <button
+        onClick={handleToggle}
+        className="flex items-center gap-1.5 text-[11px] text-sage-400 hover:text-brand-600 transition-colors"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+        </svg>
+        <span>{countLabel}</span>
+      </button>
+
+      {/* Expanded thread */}
+      {open && (
+        <div className="border-t border-sage-100 mt-1 pt-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3 px-6">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-sage-400">
+              {localCount > 0 ? `${localCount} ${localCount === 1 ? 'reply' : 'replies'}` : 'Replies'}
+            </p>
+            {localCount > 1 && (
+              <div className="flex items-center gap-1 bg-sage-50 rounded-full p-0.5 border border-sage-200">
+                {(['newest', 'top'] as Sort[]).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setSort(s)}
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium transition-all ${
+                      sort === s ? 'bg-white text-brand-800 shadow-sm' : 'text-sage-400'
+                    }`}
+                  >
+                    {s === 'newest' ? 'Newest' : 'Top'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Comments list */}
+          <div className="px-6 space-y-4 mb-4">
+            {loading && (
+              <div className="flex justify-center py-4">
+                <SpinnerIcon size={16} />
+              </div>
+            )}
+
+            {!loading && loaded && sorted.length === 0 && (
+              <p className="text-[12px] text-sage-400 italic text-center py-2">
+                No replies yet — be the first to share some love.
+              </p>
+            )}
+
+            {sorted.map(comment => {
+              const cr = commentReactions[comment.id] ?? {
+                reactions:   comment.reactions,
+                myReactions: comment.my_reactions ?? [],
+                loading:     null,
+              }
+              return (
+                <div key={comment.id}>
+                  {/* Top-level comment */}
+                  <CommentBubble
+                    comment={comment}
+                    reactions={cr.reactions}
+                    myReactions={cr.myReactions}
+                    reactLoading={cr.loading}
+                    onReact={type => handleCommentReact(comment.id, type)}
+                    onReply={() => {
+                      setReplyingTo(replyingTo === comment.id ? null : comment.id)
+                      setReplyDraft('')
+                      setReplyingErr(null)
+                    }}
+                    showReplyButton
+                  />
+
+                  {/* Nested replies */}
+                  {(comment.replies ?? []).map(reply => {
+                    const rr = commentReactions[reply.id] ?? {
+                      reactions:   reply.reactions,
+                      myReactions: reply.my_reactions ?? [],
+                      loading:     null,
+                    }
+                    return (
+                      <div key={reply.id} className="ml-8 mt-2">
+                        <CommentBubble
+                          comment={reply}
+                          reactions={rr.reactions}
+                          myReactions={rr.myReactions}
+                          reactLoading={rr.loading}
+                          onReact={type => handleCommentReact(reply.id, type)}
+                          onReply={() => {}}
+                          showReplyButton={false}
+                        />
+                      </div>
+                    )
+                  })}
+
+                  {/* Inline reply form */}
+                  {replyingTo === comment.id && (
+                    <div className="ml-8 mt-2">
+                      <textarea
+                        value={replyDraft}
+                        onChange={e => setReplyDraft(e.target.value)}
+                        placeholder="Write a reply…"
+                        rows={2}
+                        maxLength={500}
+                        className="w-full resize-none text-[12px] text-brand-900 placeholder-sage-300 bg-sage-50 rounded-xl px-3 py-2 border border-sage-200 focus:outline-none focus:border-brand-300 focus:bg-white transition-colors leading-relaxed"
+                      />
+                      {replyingErr && <p className="text-[11px] text-red-500 mt-1">{replyingErr}</p>}
+                      <div className="flex gap-2 mt-1.5">
+                        <button
+                          onClick={() => submitComment(replyDraft, comment.id)}
+                          disabled={!replyDraft.trim() || submitting}
+                          className="px-3 py-1.5 rounded-xl bg-brand-600 text-white text-[10px] uppercase tracking-[0.14em] font-medium hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {submitting ? '…' : 'Reply'}
+                        </button>
+                        <button
+                          onClick={() => { setReplyingTo(null); setReplyDraft(''); setReplyingErr(null) }}
+                          className="px-3 py-1.5 text-[10px] text-sage-400 hover:text-sage-600"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* New comment compose */}
+          <div className="px-6 pb-4 border-t border-sage-100 pt-3">
+            <textarea
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              placeholder="Add a reply…"
+              rows={2}
+              maxLength={500}
+              className="w-full resize-none text-[12px] text-brand-900 placeholder-sage-300 bg-sage-50 rounded-xl px-3 py-2 border border-sage-200 focus:outline-none focus:border-brand-300 focus:bg-white transition-colors leading-relaxed"
+            />
+            {submitError && <p className="text-[11px] text-red-500 mt-1">{submitError}</p>}
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[10px] text-sage-300 italic">Your reply will be reviewed before appearing.</p>
+              <button
+                onClick={() => submitComment(draft, null)}
+                disabled={!draft.trim() || submitting}
+                className="px-3 py-1.5 rounded-xl bg-brand-600 text-white text-[10px] uppercase tracking-[0.14em] font-medium hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {submitting ? '…' : 'Post'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── CommentBubble ─────────────────────────────────────────────────────────────
+
+function CommentBubble({
+  comment,
+  reactions,
+  myReactions,
+  reactLoading,
+  onReact,
+  onReply,
+  showReplyButton,
+}: {
+  comment:         Comment
+  reactions:       Reactions
+  myReactions:     string[]
+  reactLoading:    string | null
+  onReact:         (type: keyof Reactions) => void
+  onReply:         () => void
+  showReplyButton: boolean
+}) {
+  return (
+    <div className="flex gap-2.5">
+      <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span className="text-[10px] font-semibold text-sage-600">
+          {(comment.profiles?.full_name ?? 'M')[0].toUpperCase()}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="bg-sage-50 rounded-xl px-3 py-2.5 border border-sage-100">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[11px] font-medium text-brand-900">
+              {anonymiseName(comment.profiles?.full_name)}
+            </span>
+            <span className="text-sage-200 text-[10px]">·</span>
+            <span className="text-[10px] text-sage-400">{timeAgo(comment.created_at)}</span>
+          </div>
+          <p className="text-[12px] text-brand-900 leading-relaxed">{comment.content}</p>
+        </div>
+        <div className="flex items-center gap-3 mt-1.5 pl-1">
+          <ReactionRow
+            reactions={reactions}
+            myReactions={myReactions}
+            onReact={onReact}
+            loading={reactLoading}
+          />
+          {showReplyButton && (
+            <button
+              onClick={onReply}
+              className="text-[10px] text-sage-400 hover:text-brand-600 transition-colors"
+            >
+              Reply
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── PostCard ──────────────────────────────────────────────────────────────────
 
-function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }) {
-  const [myReactions, setMyReactions] = useState<Set<string>>(new Set(post.my_reactions))
-  const [reactions,   setReactions]   = useState<Reactions>(() => {
-    const r = post.reactions
-    return {
-      heart:        r?.heart        ?? 0,
-      me_too:       r?.me_too       ?? 0,
-      sending_love: r?.sending_love ?? 0,
-    }
-  })
-  const [reactLoading, setReactLoading] = useState<string | null>(null)
+function PostCard({
+  post,
+  currentUserId,
+  categories,
+}: {
+  post:          Post
+  currentUserId: string
+  categories:    Category[]
+}) {
+  const [myReactions,     setMyReactions]     = useState<string[]>(post.my_reactions ?? [])
+  const [reactions,       setReactions]       = useState<Reactions>(() => ({
+    heart:        post.reactions?.heart        ?? 0,
+    me_too:       post.reactions?.me_too       ?? 0,
+    sending_love: post.reactions?.sending_love ?? 0,
+  }))
+  const [reactLoading,    setReactLoading]    = useState<string | null>(null)
+  const [commentCount,    setCommentCount]    = useState(post.comment_count ?? 0)
 
   async function handleReact(type: keyof Reactions) {
     if (reactLoading) return
     setReactLoading(type)
-    const hadIt = myReactions.has(type)
-
-    // Optimistic
-    setMyReactions(prev => {
-      const next = new Set(prev)
-      hadIt ? next.delete(type) : next.add(type)
-      return next
-    })
-    setReactions(prev => ({
-      ...prev,
-      [type]: Math.max(0, (prev[type] ?? 0) + (hadIt ? -1 : 1)),
-    }))
+    const hadIt = myReactions.includes(type)
+    setMyReactions(prev => hadIt ? prev.filter(r => r !== type) : [...prev, type])
+    setReactions(prev => ({ ...prev, [type]: Math.max(0, (prev[type] ?? 0) + (hadIt ? -1 : 1)) }))
 
     try {
       const res  = await fetch('/api/community/react', {
@@ -132,29 +591,16 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
       const data = await res.json()
       if (res.ok && data.counts) setReactions(data.counts as Reactions)
     } catch {
-      // Revert
-      setMyReactions(prev => {
-        const next = new Set(prev)
-        hadIt ? next.add(type) : next.delete(type)
-        return next
-      })
-      setReactions(prev => ({
-        ...prev,
-        [type]: Math.max(0, (prev[type] ?? 0) + (hadIt ? 1 : -1)),
-      }))
+      setMyReactions(prev => hadIt ? [...prev, type] : prev.filter(r => r !== type))
+      setReactions(prev => ({ ...prev, [type]: Math.max(0, (prev[type] ?? 0) + (hadIt ? 1 : -1)) }))
     } finally {
       setReactLoading(null)
     }
   }
 
-  const REACTION_CONFIG: { key: keyof Reactions; emoji: string; label: string }[] = [
-    { key: 'heart',        emoji: '♥',  label: 'Heart'        },
-    { key: 'me_too',       emoji: '🙋', label: 'Me too'       },
-    { key: 'sending_love', emoji: '🤍', label: 'Sending love' },
-  ]
-
   const isMemory = post.is_memory_card
   const badge    = ageBadge(post.baby_age_months)
+  const category = categories.find(c => c.id === post.category_id)
 
   return (
     <article className={`rounded-2xl border overflow-hidden ${
@@ -164,12 +610,20 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
     }`}>
       <div className="px-6 pt-5 pb-4">
 
-        {/* Memory badge */}
-        {isMemory && (
-          <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-brand-600 bg-warm-200 px-2 py-0.5 rounded-full">
-              Memory
-            </span>
+        {/* Badges row */}
+        {(isMemory || category) && (
+          <div className="flex items-center gap-2 mb-3">
+            {isMemory && (
+              <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-brand-600 bg-warm-200 px-2 py-0.5 rounded-full">
+                Memory
+              </span>
+            )}
+            {category && (
+              <span className="text-[10px] font-medium text-sage-600 bg-sage-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+              </span>
+            )}
           </div>
         )}
 
@@ -197,7 +651,6 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
             </div>
           </div>
 
-          {/* Age group badge */}
           {post.age_group && (
             <span className="text-[9px] uppercase tracking-[0.14em] font-medium text-brand-500 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded-full">
               {ageGroupLabel(post.age_group)}
@@ -213,36 +666,27 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
         {/* Nest reply */}
         {post.nest_reply && (
           <div className={`rounded-xl px-4 py-3 mb-4 border-l-2 ${
-            isMemory
-              ? 'bg-warm-100 border-warm-400'
-              : 'bg-brand-50 border-brand-300'
+            isMemory ? 'bg-warm-100 border-warm-400' : 'bg-brand-50 border-brand-300'
           }`}>
             <p className="text-[10px] uppercase tracking-[0.18em] text-brand-500 mb-1.5">Nest</p>
             <p className="text-sm text-brand-800 leading-relaxed italic">{post.nest_reply}</p>
           </div>
         )}
 
-        {/* Actions — Heart / Me too / Sending love */}
+        {/* Actions — reactions + comment toggle */}
         <div className="flex items-center gap-3 flex-wrap">
-          {REACTION_CONFIG.map(({ key, emoji, label }) => {
-            const active = myReactions.has(key)
-            const count  = reactions[key] ?? 0
-            return (
-              <button
-                key={key}
-                onClick={() => handleReact(key)}
-                disabled={reactLoading !== null}
-                className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-all ${
-                  active
-                    ? 'border-brand-300 bg-brand-50 text-brand-700'
-                    : 'border-sage-200 text-sage-400 hover:border-sage-300 hover:text-sage-600'
-                } disabled:opacity-50`}
-              >
-                <span>{emoji}</span>
-                <span>{count > 0 ? count : label}</span>
-              </button>
-            )
-          })}
+          <ReactionRow
+            reactions={reactions}
+            myReactions={myReactions}
+            onReact={handleReact}
+            loading={reactLoading}
+          />
+          <span className="text-sage-200 text-[10px]">·</span>
+          <CommentThread
+            postId={post.id}
+            initialCount={commentCount}
+            onCommentAdded={() => setCommentCount(c => c + 1)}
+          />
         </div>
       </div>
     </article>
@@ -296,22 +740,69 @@ function ProductCard({ product }: { product: AffiliateProduct }) {
   )
 }
 
+// ── CategoryChips ─────────────────────────────────────────────────────────────
+
+function CategoryChips({
+  categories,
+  selected,
+  onSelect,
+}: {
+  categories: Category[]
+  selected:   string | null
+  onSelect:   (id: string | null) => void
+}) {
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+      <button
+        onClick={() => onSelect(null)}
+        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
+          selected === null
+            ? 'bg-brand-600 text-white border-brand-600'
+            : 'bg-white text-sage-600 border-sage-200 hover:border-brand-300 hover:text-brand-700'
+        }`}
+      >
+        All
+      </button>
+      {categories.map(cat => (
+        <button
+          key={cat.id}
+          onClick={() => onSelect(cat.id)}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
+            selected === cat.id
+              ? 'bg-brand-600 text-white border-brand-600'
+              : 'bg-white text-sage-600 border-sage-200 hover:border-brand-300 hover:text-brand-700'
+          }`}
+        >
+          <span>{cat.icon}</span>
+          <span>{cat.name}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ── CommunityFeed ─────────────────────────────────────────────────────────────
 
 export function CommunityFeed({
   initialStagePosts,
   initialMemoryPosts,
   products,
+  categories,
   currentUserId,
   babyAgeMonths,
   ageGroup,
+  defaultCategorySlug,
 }: CommunityFeedProps) {
-  const [activeTab, setActiveTab]         = useState<Tab>('stage')
-  const [stagePosts,  setStagePosts]      = useState<Post[]>(initialStagePosts)
-  const [draft,       setDraft]           = useState('')
-  const [postType,    setPostType]        = useState<PostType>('moment')
-  const [submitting,  setSubmitting]      = useState(false)
-  const [error,       setError]           = useState<string | null>(null)
+  const defaultCategoryId = categories.find(c => c.slug === defaultCategorySlug)?.id ?? null
+
+  const [activeTab,           setActiveTab]           = useState<Tab>('stage')
+  const [stagePosts,          setStagePosts]          = useState<Post[]>(initialStagePosts)
+  const [selectedCategoryId,  setSelectedCategoryId]  = useState<string | null>(defaultCategoryId)
+  const [postCategoryId,      setPostCategoryId]      = useState<string | null>(defaultCategoryId)
+  const [draft,               setDraft]               = useState('')
+  const [postType,            setPostType]            = useState<PostType>('moment')
+  const [submitting,          setSubmitting]          = useState(false)
+  const [error,               setError]               = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const TABS: { id: Tab; label: string }[] = [
@@ -320,10 +811,14 @@ export function CommunityFeed({
     { id: 'for_you',    label: 'For You'     },
   ]
 
+  const filteredStagePosts = selectedCategoryId
+    ? stagePosts.filter(p => p.category_id === selectedCategoryId)
+    : stagePosts
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const content = draft.trim()
-    if (!content || submitting) return
+    if (!content || !postCategoryId || submitting) return
 
     setSubmitting(true)
     setError(null)
@@ -335,6 +830,7 @@ export function CommunityFeed({
         body:    JSON.stringify({
           content,
           post_type:     postType,
+          category_id:   postCategoryId,
           babyAgeMonths: typeof babyAgeMonths === 'number' ? babyAgeMonths : undefined,
         }),
       })
@@ -354,6 +850,7 @@ export function CommunityFeed({
         liked_by_me:  false,
         my_reactions: [],
         profiles:     null,
+        comment_count: 0,
       }, ...prev])
       setDraft('')
     } catch {
@@ -387,7 +884,7 @@ export function CommunityFeed({
       {/* ══ YOUR STAGE TAB ════════════════════════════════════════════════════ */}
       {activeTab === 'stage' && (
         <>
-          {/* Weekly highlight banner */}
+          {/* Welcome banner */}
           <div className="bg-brand-50 border border-brand-100 rounded-2xl px-5 py-4 flex items-start gap-3">
             <span className="text-xl leading-none mt-0.5">🌱</span>
             <div>
@@ -399,6 +896,15 @@ export function CommunityFeed({
               </p>
             </div>
           </div>
+
+          {/* Category filter chips */}
+          {categories.length > 0 && (
+            <CategoryChips
+              categories={categories}
+              selected={selectedCategoryId}
+              onSelect={setSelectedCategoryId}
+            />
+          )}
 
           {/* Compose box */}
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-sage-200 px-6 py-5">
@@ -420,6 +926,32 @@ export function CommunityFeed({
               ))}
             </div>
 
+            {/* Category picker */}
+            {categories.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-sage-400 mb-2">
+                  Category <span className="text-red-400">*</span>
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setPostCategoryId(cat.id)}
+                      className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
+                        postCategoryId === cat.id
+                          ? 'bg-brand-600 text-white border-brand-600'
+                          : 'border-sage-200 text-sage-400 hover:border-sage-300 hover:text-sage-600'
+                      }`}
+                    >
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               value={draft}
@@ -439,9 +971,7 @@ export function CommunityFeed({
               "
             />
 
-            {error && (
-              <p className="text-xs text-red-500 mb-3">{error}</p>
-            )}
+            {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-sage-300">
@@ -449,7 +979,7 @@ export function CommunityFeed({
               </span>
               <button
                 type="submit"
-                disabled={!draft.trim() || submitting}
+                disabled={!draft.trim() || !postCategoryId || submitting}
                 className="
                   flex items-center gap-2 px-5 py-2 rounded-xl bg-brand-600 text-white
                   text-[11px] uppercase tracking-[0.18em] font-medium
@@ -467,14 +997,16 @@ export function CommunityFeed({
           </form>
 
           {/* Stage feed */}
-          {stagePosts.length === 0 ? (
+          {filteredStagePosts.length === 0 ? (
             <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-10 text-center">
-              <p className="font-display text-base italic text-sage-400 mb-1">No posts yet in your stage</p>
+              <p className="font-display text-base italic text-sage-400 mb-1">
+                {selectedCategoryId ? 'No posts in this category yet' : 'No posts yet in your stage'}
+              </p>
               <p className="text-xs text-sage-400">Be the first to share something with parents at the same stage.</p>
             </div>
           ) : (
-            stagePosts.map(post => (
-              <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+            filteredStagePosts.map(post => (
+              <PostCard key={post.id} post={post} currentUserId={currentUserId} categories={categories} />
             ))
           )}
         </>
@@ -499,7 +1031,7 @@ export function CommunityFeed({
             </div>
           ) : (
             initialMemoryPosts.map(post => (
-              <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+              <PostCard key={post.id} post={post} currentUserId={currentUserId} categories={categories} />
             ))
           )}
         </>

@@ -23,6 +23,25 @@ function computeAgeGroup(ageMonths: number | null, isExpecting: boolean): string
   return '3y+'
 }
 
+const AGE_GROUP_TO_CATEGORY_SLUG: Record<string, string> = {
+  'expecting': 'pregnancy',
+  '0-3mo':    'newborn',
+  '4-6mo':    'baby',
+  '7-12mo':   'baby',
+  '1y':       'toddler',
+  '18mo':     'toddler',
+  '2y':       'toddler',
+  '3y+':      'toddler',
+}
+
+const POST_SELECT = `
+  id, content, baby_age_months, age_group, post_type,
+  likes_count, reactions, is_memory_card, milestone_id,
+  category_id, comment_count,
+  nest_reply, nest_replied_at, created_at, user_id,
+  profiles!inner ( full_name )
+`
+
 export default async function CommunityPage() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -54,7 +73,7 @@ export default async function CommunityPage() {
       <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
         <header className="mb-8">
           <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Community</p>
-          <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">You're not alone</h1>
+          <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">You&apos;re not alone</h1>
         </header>
         <div className="bg-white rounded-2xl border border-sage-200 px-6 py-10 text-center">
           <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center mx-auto mb-4">
@@ -91,36 +110,34 @@ export default async function CommunityPage() {
   const babyAgeMonths = baby ? getAgeMonths(baby.date_of_birth) : null
   const isExpecting   = profile?.parent_type === 'expecting'
   const ageGroup      = computeAgeGroup(babyAgeMonths, isExpecting)
+  const defaultCategorySlug = ageGroup ? (AGE_GROUP_TO_CATEGORY_SLUG[ageGroup] ?? null) : null
 
   // ── Parallel data fetches ─────────────────────────────────────────────────
   const [
+    { data: categories },
     { data: rawStagePosts },
     { data: rawMemoryPosts },
     { data: rawProducts },
   ] = await Promise.all([
+    // Categories
+    supabase
+      .from('community_categories')
+      .select('id, name, icon, slug')
+      .order('sort_order', { ascending: true }),
+
     // Stage posts — matching age group
     supabase
       .from('community_posts')
-      .select(`
-        id, content, baby_age_months, age_group, post_type,
-        likes_count, reactions, is_memory_card, milestone_id,
-        nest_reply, nest_replied_at, created_at, user_id,
-        profiles!inner ( full_name )
-      `)
+      .select(POST_SELECT)
       .eq('is_approved', true)
       .eq('age_group', ageGroup ?? '')
       .order('created_at', { ascending: false })
-      .limit(20),
+      .limit(30),
 
     // Memory / milestone cards
     supabase
       .from('community_posts')
-      .select(`
-        id, content, baby_age_months, age_group, post_type,
-        likes_count, reactions, is_memory_card, milestone_id,
-        nest_reply, nest_replied_at, created_at, user_id,
-        profiles!inner ( full_name )
-      `)
+      .select(POST_SELECT)
       .eq('is_approved', true)
       .eq('is_memory_card', true)
       .order('created_at', { ascending: false })
@@ -181,7 +198,7 @@ export default async function CommunityPage() {
     <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
       <header className="mb-8">
         <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Community</p>
-        <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">You're not alone</h1>
+        <h1 className="font-display text-[2rem] italic text-brand-900 leading-tight">You&apos;re not alone</h1>
         <p className="text-sm text-sage-400 mt-2 leading-relaxed">
           Share wins, questions, and real moments. Nest is here too — every post gets a personal reply.
         </p>
@@ -191,9 +208,11 @@ export default async function CommunityPage() {
         initialStagePosts={stagePosts as Parameters<typeof CommunityFeed>[0]['initialStagePosts']}
         initialMemoryPosts={memoryPosts as Parameters<typeof CommunityFeed>[0]['initialMemoryPosts']}
         products={(rawProducts ?? []) as Parameters<typeof CommunityFeed>[0]['products']}
+        categories={(categories ?? []) as Parameters<typeof CommunityFeed>[0]['categories']}
         currentUserId={user.id}
         babyAgeMonths={babyAgeMonths}
         ageGroup={ageGroup}
+        defaultCategorySlug={defaultCategorySlug}
       />
     </div>
   )
