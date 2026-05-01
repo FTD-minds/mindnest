@@ -7,32 +7,40 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const SYSTEM_PROMPT = `You are a warm but strict content moderator for MindNest, a premium parenting community built to support mothers and parents through every stage of early childhood.
+const SYSTEM_PROMPT = `You are a content moderator for MindNest, a warm parenting community. Your job is simple: approve almost everything.
 
-Your job is to decide whether a community post should be published. The community exists to lift parents up — not to stress them out, shame them, or expose them to harm.
+DEFAULT: APPROVE. Only reject if the content is clearly and obviously harmful.
 
-APPROVE posts that are:
-- Questions about baby development, sleep, feeding, or behaviour
-- Milestone celebrations and proud parent moments
-- Requests for emotional support or solidarity
-- Encouragement and positivity toward other parents
-- Real, honest experiences — even vulnerable or difficult ones
-- General parenting advice shared from personal experience
+ALWAYS APPROVE (never reject these):
+- Short replies of any kind: "yes", "same!", "me too", "love this", "thank you", "absolutely", "this", "same here"
+- Emoji-only messages or emoji mixed with words
+- One-word or one-sentence comments
+- Questions of any kind, on any topic
+- Personal stories, experiences, and venting
+- Honest emotions: frustration, exhaustion, anxiety, sadness, overwhelm, anger
+- Parenting struggles, setbacks, hard days, and difficult moments
+- Milestone celebrations, wins, and proud moments
+- Supportive, encouraging, or empathetic comments
+- Disagreement with parenting advice (even strong disagreement)
+- Off-topic comments or rambling
+- Imperfect grammar, typos, or informal language
 
-REJECT posts that contain:
-- Profanity or explicit language
-- Bullying, shaming, or attacking other parents or their choices
-- Negative or disparaging comments about MindNest, the Nest AI, or the app
-- Spam, self-promotion, or advertising of any product or service
-- Medical misinformation or advice that contradicts standard paediatric guidance
-- Content that could make a parent feel judged, inadequate, or frightened
-- Self-harm, harm to children, or any content describing abuse
-- Hate speech, discrimination, or derogatory language about any group
+REJECT ONLY if the content clearly contains one of these:
+- Profanity, slurs, or vulgar language (actual swear words, not mild frustration)
+- Direct personal attacks: bullying or shaming a specific other parent
+- Dangerous medical misinformation that could physically harm a child (e.g. "give honey to a 3-month-old", "don't vaccinate")
+- Spam, commercial links, or advertisements
+- Sexually explicit or graphically violent content
 
-When in doubt, approve. This is a safe, warm space — not a sterile one.
+IMPORTANT: If you are unsure whether something qualifies as harmful, APPROVE IT. The cost of a false rejection (blocking a genuine parent from getting support) is far higher than the cost of approving an imperfect post. Err heavily on the side of approval.
 
-Respond ONLY with a valid JSON object. No markdown. No explanation outside the JSON.
-Format: { "approved": true } or { "approved": false, "reason": "one sentence reason" }`
+Respond ONLY with valid JSON. No markdown. No extra text.
+Format: { "approved": true } or { "approved": false, "reason": "one sentence" }`
+
+// Fast-path patterns — approve immediately without calling Claude
+// This prevents false rejections on obviously benign short content
+const FAST_APPROVE_MAX_LENGTH = 40
+const OBVIOUS_SLURS = /\b(fuck|shit|cunt|nigger|faggot|retard|bitch)\b/i
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -42,7 +50,6 @@ function json(body: unknown, status = 200): Response {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }
@@ -63,9 +70,14 @@ Deno.serve(async (req: Request) => {
     return json({ approved: false, reason: 'No content provided' }, 400)
   }
 
+  // Fast-path: short content without obvious slurs is auto-approved.
+  // This avoids false rejections on "yes", "same!", emojis, etc.
+  if (content.length <= FAST_APPROVE_MAX_LENGTH && !OBVIOUS_SLURS.test(content)) {
+    return json({ approved: true, reason: 'Short content auto-approved' })
+  }
+
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) {
-    // Fail open — if the key is missing, let the post through
     console.error('[moderate-post] ANTHROPIC_API_KEY not set — failing open')
     return json({ approved: true, reason: 'Moderation skipped (config error)' })
   }
@@ -74,15 +86,15 @@ Deno.serve(async (req: Request) => {
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type':    'application/json',
-        'x-api-key':       apiKey,
+        'Content-Type':      'application/json',
+        'x-api-key':         apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model:      'claude-haiku-4-5-20251001',
-        max_tokens: 100,
+        max_tokens: 60,
         system:     SYSTEM_PROMPT,
-        messages:   [{ role: 'user', content: `Post to moderate:\n\n${content}` }],
+        messages:   [{ role: 'user', content: `Moderate this content:\n\n${content}` }],
       }),
     })
 
@@ -94,7 +106,6 @@ Deno.serve(async (req: Request) => {
     const anthropicData = await anthropicRes.json()
     const rawText = (anthropicData?.content?.[0]?.text ?? '').trim()
 
-    // Strip markdown code fences if Claude wraps the JSON
     const cleaned = rawText
       .replace(/^```[^\n]*\n?/m, '')
       .replace(/```$/m, '')
@@ -108,7 +119,6 @@ Deno.serve(async (req: Request) => {
     })
   } catch (err) {
     console.error('[moderate-post] Unexpected error:', err)
-    // Fail open — moderation errors should never silently block legitimate posts
     return json({ approved: true, reason: 'Moderation check passed' })
   }
 })

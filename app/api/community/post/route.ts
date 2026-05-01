@@ -79,24 +79,29 @@ export async function POST(request: Request) {
   const trimmedContent = (content as string).trim()
 
   // ── AI content moderation via Edge Function ───────────────────────────────
-  try {
-    const db = createAdminClient()
-    const { data: modData, error: modError } = await db.functions.invoke('moderate-post', {
-      body: { content: trimmedContent },
-    })
+  // Short content (≤40 chars) is auto-approved — skips the edge function call
+  // to avoid false rejections on brief, clearly benign posts.
+  const SKIP_MODERATION_THRESHOLD = 40
+  if (trimmedContent.length > SKIP_MODERATION_THRESHOLD) {
+    try {
+      const db = createAdminClient()
+      const { data: modData, error: modError } = await db.functions.invoke('moderate-post', {
+        body: { content: trimmedContent },
+      })
 
-    if (!modError && modData && modData.approved === false) {
-      return NextResponse.json(
-        {
-          error:   'moderation_failed',
-          message: "That post didn't quite fit our community guidelines — keep it kind and supportive!",
-        },
-        { status: 400 },
-      )
+      if (!modError && modData && modData.approved === false) {
+        return NextResponse.json(
+          {
+            error:   'moderation_failed',
+            message: "That post didn't quite fit our community guidelines — keep it kind and supportive!",
+          },
+          { status: 400 },
+        )
+      }
+      // modError or unexpected shape → fail open (post allowed through)
+    } catch {
+      // Network / deployment error → fail open
     }
-    // modError or unexpected shape → fail open (post allowed through)
-  } catch {
-    // Network / deployment error → fail open
   }
 
   // ── Compute metadata ──────────────────────────────────────────────────────

@@ -79,23 +79,28 @@ export async function POST(request: Request) {
   const trimmed = content.trim()
   const db      = createAdminClient()
 
-  // ── AI moderation (same pattern as posts, fail open) ─────────────────────
-  let approved = true
-  try {
-    const { data: modData, error: modError } = await db.functions.invoke('moderate-post', {
-      body: { content: trimmed },
-    })
-    if (!modError && modData && modData.approved === false) {
-      return NextResponse.json(
-        {
-          error:   'moderation_failed',
-          message: "That comment didn't quite fit our community guidelines — keep it kind and supportive!",
-        },
-        { status: 400 },
-      )
+  // ── AI moderation ────────────────────────────────────────────────────────
+  // Short comments (≤40 chars) are auto-approved — avoids false rejections
+  // on "yes", "same!", emoji-only, and other clearly benign short replies.
+  const SKIP_MODERATION_THRESHOLD = 40
+  const approved = true
+  if (trimmed.length > SKIP_MODERATION_THRESHOLD) {
+    try {
+      const { data: modData, error: modError } = await db.functions.invoke('moderate-post', {
+        body: { content: trimmed },
+      })
+      if (!modError && modData && modData.approved === false) {
+        return NextResponse.json(
+          {
+            error:   'moderation_failed',
+            message: "That comment didn't quite fit our community guidelines — keep it kind and supportive!",
+          },
+          { status: 400 },
+        )
+      }
+    } catch {
+      // Fail open
     }
-  } catch {
-    // Fail open
   }
 
   // ── Insert comment ────────────────────────────────────────────────────────
