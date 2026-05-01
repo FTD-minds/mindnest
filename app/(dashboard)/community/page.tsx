@@ -37,7 +37,7 @@ const AGE_GROUP_TO_CATEGORY_SLUG: Record<string, string> = {
 const POST_SELECT = `
   id, content, baby_age_months, age_group, post_type,
   likes_count, reactions, is_memory_card, milestone_id,
-  category_id, comment_count,
+  category_id, topic_category_id, comment_count,
   nest_reply, nest_replied_at, created_at, user_id,
   profiles!inner ( full_name )
 `
@@ -122,17 +122,16 @@ export default async function CommunityPage() {
     // Categories
     supabase
       .from('community_categories')
-      .select('id, name, icon, slug')
+      .select('id, name, icon, slug, category_type')
       .order('sort_order', { ascending: true }),
 
-    // Stage posts — matching age group
+    // All recent posts — client-side stage/topic filtering
     supabase
       .from('community_posts')
       .select(POST_SELECT)
       .eq('is_approved', true)
-      .eq('age_group', ageGroup ?? '')
       .order('created_at', { ascending: false })
-      .limit(30),
+      .limit(40),
 
     // Memory / milestone cards
     supabase
@@ -194,6 +193,10 @@ export default async function CommunityPage() {
   const stagePosts  = (rawStagePosts  ?? []).map(mapPost)
   const memoryPosts = (rawMemoryPosts ?? []).map(mapPost)
 
+  const stageCategories = (categories ?? []).filter(c => c.category_type === 'stage')
+  const topicCategories = (categories ?? []).filter(c => c.category_type === 'topic')
+  const stageCategoryId = (categories ?? []).find(c => c.slug === defaultCategorySlug)?.id ?? null
+
   return (
     <div className="max-w-xl mx-auto px-5 pt-10 pb-28 lg:pb-10">
       <header className="mb-8">
@@ -208,11 +211,12 @@ export default async function CommunityPage() {
         initialStagePosts={stagePosts as Parameters<typeof CommunityFeed>[0]['initialStagePosts']}
         initialMemoryPosts={memoryPosts as Parameters<typeof CommunityFeed>[0]['initialMemoryPosts']}
         products={(rawProducts ?? []) as Parameters<typeof CommunityFeed>[0]['products']}
-        categories={(categories ?? []) as Parameters<typeof CommunityFeed>[0]['categories']}
+        stageCategories={stageCategories as Parameters<typeof CommunityFeed>[0]['stageCategories']}
+        topicCategories={topicCategories as Parameters<typeof CommunityFeed>[0]['topicCategories']}
         currentUserId={user.id}
         babyAgeMonths={babyAgeMonths}
         ageGroup={ageGroup}
-        defaultCategorySlug={defaultCategorySlug}
+        stageCategoryId={stageCategoryId}
       />
     </div>
   )

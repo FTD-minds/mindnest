@@ -12,30 +12,32 @@ interface Reactions {
 }
 
 export interface Category {
-  id:   string
-  name: string
-  icon: string
-  slug: string
+  id:            string
+  name:          string
+  icon:          string
+  slug:          string
+  category_type: string
 }
 
 interface Post {
-  id:              string
-  content:         string
-  baby_age_months: number | null
-  age_group:       string | null
-  post_type:       string
-  likes_count:     number
-  reactions:       Reactions
-  is_memory_card:  boolean
-  milestone_id:    string | null
-  category_id:     string | null
-  comment_count:   number
-  nest_reply:      string | null
-  created_at:      string
-  user_id:         string
-  profiles:        { full_name: string } | null
-  liked_by_me:     boolean
-  my_reactions:    string[]
+  id:                string
+  content:           string
+  baby_age_months:   number | null
+  age_group:         string | null
+  post_type:         string
+  likes_count:       number
+  reactions:         Reactions
+  is_memory_card:    boolean
+  milestone_id:      string | null
+  category_id:       string | null
+  topic_category_id: string | null
+  comment_count:     number
+  nest_reply:        string | null
+  created_at:        string
+  user_id:           string
+  profiles:          { full_name: string } | null
+  liked_by_me:       boolean
+  my_reactions:      string[]
 }
 
 interface Comment {
@@ -62,14 +64,15 @@ interface AffiliateProduct {
 }
 
 interface CommunityFeedProps {
-  initialStagePosts:   Post[]
-  initialMemoryPosts:  Post[]
-  products:            AffiliateProduct[]
-  categories:          Category[]
-  currentUserId:       string
-  babyAgeMonths?:      number | null
-  ageGroup?:           string | null
-  defaultCategorySlug?: string | null
+  initialStagePosts:  Post[]
+  initialMemoryPosts: Post[]
+  products:           AffiliateProduct[]
+  stageCategories:    Category[]
+  topicCategories:    Category[]
+  currentUserId:      string
+  babyAgeMonths?:     number | null
+  ageGroup?:          string | null
+  stageCategoryId?:   string | null
 }
 
 type Tab      = 'stage' | 'milestones' | 'for_you'
@@ -127,6 +130,40 @@ function nestComments(flat: Comment[]): Comment[] {
   return top.map(c => ({ ...c, replies: replies.filter(r => r.parent_id === c.id) }))
 }
 
+function getStageBanner(ageGroup: string | null | undefined): { title: string; body: string } {
+  switch (ageGroup) {
+    case 'expecting':
+      return {
+        title: 'Welcome to the Expecting Stage',
+        body:  "You're surrounded by moms on the same journey. Ask anything — no question is too small.",
+      }
+    case '0-3mo':
+      return {
+        title: 'Welcome to the Newborn Stage',
+        body:  "The fourth trimester is real. You're not alone — thousands of moms are right here with you.",
+      }
+    case '4-6mo':
+    case '7-12mo':
+      return {
+        title: 'Welcome to the Baby Stage',
+        body:  'First foods, first words, first everything. Share the moments and the questions.',
+      }
+    case '1y':
+    case '18mo':
+    case '2y':
+    case '3y+':
+      return {
+        title: 'Welcome to the Toddler Stage',
+        body:  'Big feelings, big milestones. Connect with moms who get it.',
+      }
+    default:
+      return {
+        title: 'Welcome to Your Stage',
+        body:  "You're in great company. Share a moment, ask a question — we're all in this together.",
+      }
+  }
+}
+
 const REACTION_CONFIG: { key: keyof Reactions; emoji: string; label: string }[] = [
   { key: 'heart',        emoji: '♥',  label: 'Heart'        },
   { key: 'me_too',       emoji: '🙋', label: 'Me too'       },
@@ -178,24 +215,23 @@ function CommentThread({
   initialCount,
   onCommentAdded,
 }: {
-  postId:          string
-  initialCount:    number
-  onCommentAdded:  () => void
+  postId:         string
+  initialCount:   number
+  onCommentAdded: () => void
 }) {
-  const [open,         setOpen]         = useState(false)
-  const [loaded,       setLoaded]       = useState(false)
-  const [loading,      setLoading]      = useState(false)
-  const [comments,     setComments]     = useState<Comment[]>([])
-  const [localCount,   setLocalCount]   = useState(initialCount)
-  const [sort,         setSort]         = useState<Sort>('newest')
-  const [draft,        setDraft]        = useState('')
-  const [submitting,   setSubmitting]   = useState(false)
-  const [submitError,  setSubmitError]  = useState<string | null>(null)
-  const [replyingTo,   setReplyingTo]   = useState<string | null>(null)
-  const [replyDraft,   setReplyDraft]   = useState('')
-  const [replyingErr,  setReplyingErr]  = useState<string | null>(null)
+  const [open,        setOpen]        = useState(false)
+  const [loaded,      setLoaded]      = useState(false)
+  const [loading,     setLoading]     = useState(false)
+  const [comments,    setComments]    = useState<Comment[]>([])
+  const [localCount,  setLocalCount]  = useState(initialCount)
+  const [sort,        setSort]        = useState<Sort>('newest')
+  const [draft,       setDraft]       = useState('')
+  const [submitting,  setSubmitting]  = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [replyingTo,  setReplyingTo]  = useState<string | null>(null)
+  const [replyDraft,  setReplyDraft]  = useState('')
+  const [replyingErr, setReplyingErr] = useState<string | null>(null)
 
-  // Per-comment reaction state: commentId → { reactions, myReactions, loading }
   const [commentReactions, setCommentReactions] = useState<
     Record<string, { reactions: Reactions; myReactions: string[]; loading: string | null }>
   >({})
@@ -203,12 +239,11 @@ function CommentThread({
   async function loadComments() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/community/comments?postId=${postId}`)
+      const res  = await fetch(`/api/community/comments?postId=${postId}`)
       const data = await res.json()
       if (!res.ok) return
       const flat: Comment[] = data.comments ?? []
       setComments(flat)
-      // Build initial reaction state
       const map: typeof commentReactions = {}
       for (const c of flat) {
         map[c.id] = {
@@ -236,7 +271,6 @@ function CommentThread({
 
     const hadIt = current.myReactions.includes(type)
 
-    // Optimistic
     setCommentReactions(prev => ({
       ...prev,
       [commentId]: {
@@ -267,7 +301,6 @@ function CommentThread({
         return
       }
     } catch {
-      // Revert
       setCommentReactions(prev => ({
         ...prev,
         [commentId]: {
@@ -295,7 +328,7 @@ function CommentThread({
     else setSubmitError(null)
 
     try {
-      const res = await fetch('/api/community/comments', {
+      const res  = await fetch('/api/community/comments', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ postId, content: trimmed, parentId }),
@@ -327,7 +360,6 @@ function CommentThread({
     }
   }
 
-  // Sort logic
   const nested = nestComments(comments)
   const sorted = [...nested].sort((a, b) => {
     if (sort === 'top') return totalReactions(commentReactions[b.id]?.reactions ?? b.reactions) - totalReactions(commentReactions[a.id]?.reactions ?? a.reactions)
@@ -340,7 +372,6 @@ function CommentThread({
 
   return (
     <>
-      {/* Toggle button in the actions row */}
       <button
         onClick={handleToggle}
         className="flex items-center gap-1.5 text-[11px] text-sage-400 hover:text-brand-600 transition-colors"
@@ -351,10 +382,8 @@ function CommentThread({
         <span>{countLabel}</span>
       </button>
 
-      {/* Expanded thread */}
       {open && (
         <div className="border-t border-sage-100 mt-1 pt-4">
-          {/* Header */}
           <div className="flex items-center justify-between mb-3 px-6">
             <p className="text-[10px] uppercase tracking-[0.18em] text-sage-400">
               {localCount > 0 ? `${localCount} ${localCount === 1 ? 'reply' : 'replies'}` : 'Replies'}
@@ -376,7 +405,6 @@ function CommentThread({
             )}
           </div>
 
-          {/* Comments list */}
           <div className="px-6 space-y-4 mb-4">
             {loading && (
               <div className="flex justify-center py-4">
@@ -398,7 +426,6 @@ function CommentThread({
               }
               return (
                 <div key={comment.id}>
-                  {/* Top-level comment */}
                   <CommentBubble
                     comment={comment}
                     reactions={cr.reactions}
@@ -413,7 +440,6 @@ function CommentThread({
                     showReplyButton
                   />
 
-                  {/* Nested replies */}
                   {(comment.replies ?? []).map(reply => {
                     const rr = commentReactions[reply.id] ?? {
                       reactions:   reply.reactions,
@@ -435,7 +461,6 @@ function CommentThread({
                     )
                   })}
 
-                  {/* Inline reply form */}
                   {replyingTo === comment.id && (
                     <div className="ml-8 mt-2">
                       <textarea
@@ -469,7 +494,6 @@ function CommentThread({
             })}
           </div>
 
-          {/* New comment compose */}
           <div className="px-6 pb-4 border-t border-sage-100 pt-3">
             <textarea
               value={draft}
@@ -560,20 +584,20 @@ function CommentBubble({
 function PostCard({
   post,
   currentUserId,
-  categories,
+  topicCategories,
 }: {
-  post:          Post
-  currentUserId: string
-  categories:    Category[]
+  post:            Post
+  currentUserId:   string
+  topicCategories: Category[]
 }) {
-  const [myReactions,     setMyReactions]     = useState<string[]>(post.my_reactions ?? [])
-  const [reactions,       setReactions]       = useState<Reactions>(() => ({
+  const [myReactions,  setMyReactions]  = useState<string[]>(post.my_reactions ?? [])
+  const [reactions,    setReactions]    = useState<Reactions>(() => ({
     heart:        post.reactions?.heart        ?? 0,
     me_too:       post.reactions?.me_too       ?? 0,
     sending_love: post.reactions?.sending_love ?? 0,
   }))
-  const [reactLoading,    setReactLoading]    = useState<string | null>(null)
-  const [commentCount,    setCommentCount]    = useState(post.comment_count ?? 0)
+  const [reactLoading, setReactLoading] = useState<string | null>(null)
+  const [commentCount, setCommentCount] = useState(post.comment_count ?? 0)
 
   async function handleReact(type: keyof Reactions) {
     if (reactLoading) return
@@ -598,9 +622,12 @@ function PostCard({
     }
   }
 
-  const isMemory = post.is_memory_card
-  const badge    = ageBadge(post.baby_age_months)
-  const category = categories.find(c => c.id === post.category_id)
+  const isMemory   = post.is_memory_card
+  const badge      = ageBadge(post.baby_age_months)
+  const topicTag   = topicCategories.find(c => c.id === post.topic_category_id)
+
+  // Suppress unused variable warning — currentUserId reserved for future moderation UI
+  void currentUserId
 
   return (
     <article className={`rounded-2xl border overflow-hidden ${
@@ -611,17 +638,17 @@ function PostCard({
       <div className="px-6 pt-5 pb-4">
 
         {/* Badges row */}
-        {(isMemory || category) && (
+        {(isMemory || topicTag) && (
           <div className="flex items-center gap-2 mb-3">
             {isMemory && (
               <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-brand-600 bg-warm-200 px-2 py-0.5 rounded-full">
                 Memory
               </span>
             )}
-            {category && (
+            {topicTag && (
               <span className="text-[10px] font-medium text-sage-600 bg-sage-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span>{category.icon}</span>
-                <span>{category.name}</span>
+                <span>{topicTag.icon}</span>
+                <span>{topicTag.name}</span>
               </span>
             )}
           </div>
@@ -673,7 +700,7 @@ function PostCard({
           </div>
         )}
 
-        {/* Actions — reactions + comment toggle */}
+        {/* Actions */}
         <div className="flex items-center gap-3 flex-wrap">
           <ReactionRow
             reactions={reactions}
@@ -740,9 +767,9 @@ function ProductCard({ product }: { product: AffiliateProduct }) {
   )
 }
 
-// ── CategoryChips ─────────────────────────────────────────────────────────────
+// ── FilterChips — reusable chip row ──────────────────────────────────────────
 
-function CategoryChips({
+function FilterChips({
   categories,
   selected,
   onSelect,
@@ -766,7 +793,7 @@ function CategoryChips({
       {categories.map(cat => (
         <button
           key={cat.id}
-          onClick={() => onSelect(cat.id)}
+          onClick={() => onSelect(selected === cat.id ? null : cat.id)}
           className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
             selected === cat.id
               ? 'bg-brand-600 text-white border-brand-600'
@@ -787,22 +814,22 @@ export function CommunityFeed({
   initialStagePosts,
   initialMemoryPosts,
   products,
-  categories,
+  stageCategories,
+  topicCategories,
   currentUserId,
   babyAgeMonths,
   ageGroup,
-  defaultCategorySlug,
+  stageCategoryId,
 }: CommunityFeedProps) {
-  const defaultCategoryId = categories.find(c => c.slug === defaultCategorySlug)?.id ?? null
-
-  const [activeTab,           setActiveTab]           = useState<Tab>('stage')
-  const [stagePosts,          setStagePosts]          = useState<Post[]>(initialStagePosts)
-  const [selectedCategoryId,  setSelectedCategoryId]  = useState<string | null>(defaultCategoryId)
-  const [postCategoryId,      setPostCategoryId]      = useState<string | null>(defaultCategoryId)
-  const [draft,               setDraft]               = useState('')
-  const [postType,            setPostType]            = useState<PostType>('moment')
-  const [submitting,          setSubmitting]          = useState(false)
-  const [error,               setError]               = useState<string | null>(null)
+  const [activeTab,         setActiveTab]         = useState<Tab>('stage')
+  const [stagePosts,        setStagePosts]        = useState<Post[]>(initialStagePosts)
+  const [selectedStageId,   setSelectedStageId]   = useState<string | null>(stageCategoryId ?? null)
+  const [selectedTopicId,   setSelectedTopicId]   = useState<string | null>(null)
+  const [topicCategoryId,   setTopicCategoryId]   = useState<string | null>(null)
+  const [draft,             setDraft]             = useState('')
+  const [postType,          setPostType]          = useState<PostType>('moment')
+  const [submitting,        setSubmitting]        = useState(false)
+  const [error,             setError]             = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const TABS: { id: Tab; label: string }[] = [
@@ -811,14 +838,16 @@ export function CommunityFeed({
     { id: 'for_you',    label: 'For You'     },
   ]
 
-  const filteredStagePosts = selectedCategoryId
-    ? stagePosts.filter(p => p.category_id === selectedCategoryId)
-    : stagePosts
+  const filteredStagePosts = stagePosts.filter(p => {
+    const stageMatch = selectedStageId === null || p.category_id === selectedStageId
+    const topicMatch = selectedTopicId  === null || p.topic_category_id === selectedTopicId
+    return stageMatch && topicMatch
+  })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const content = draft.trim()
-    if (!content || !postCategoryId || submitting) return
+    if (!content || submitting) return
 
     setSubmitting(true)
     setError(null)
@@ -829,9 +858,10 @@ export function CommunityFeed({
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           content,
-          post_type:     postType,
-          category_id:   postCategoryId,
-          babyAgeMonths: typeof babyAgeMonths === 'number' ? babyAgeMonths : undefined,
+          post_type:          postType,
+          category_id:        stageCategoryId,
+          topic_category_id:  topicCategoryId,
+          babyAgeMonths:      typeof babyAgeMonths === 'number' ? babyAgeMonths : undefined,
         }),
       })
       const data = await res.json()
@@ -853,6 +883,7 @@ export function CommunityFeed({
         comment_count: 0,
       }, ...prev])
       setDraft('')
+      setTopicCategoryId(null)
     } catch {
       setError('Could not post. Please check your connection.')
     } finally {
@@ -860,7 +891,9 @@ export function CommunityFeed({
     }
   }
 
-  const stageLabel = ageGroupLabel(ageGroup)
+  const banner       = getStageBanner(ageGroup)
+  const myStageLabel = stageCategories.find(c => c.id === stageCategoryId)
+  const stageLabel   = ageGroupLabel(ageGroup)
 
   return (
     <div className="space-y-5">
@@ -889,26 +922,41 @@ export function CommunityFeed({
             <span className="text-xl leading-none mt-0.5">🌱</span>
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-brand-600 mb-0.5">
-                Welcome to {stageLabel ? `the ${stageLabel} stage` : 'your stage'}
+                {banner.title}
               </p>
               <p className="text-[12px] text-brand-800 leading-relaxed">
-                You're in great company. Share a moment, ask a question — every post gets a personal reply from Nest.
+                {banner.body}
               </p>
             </div>
           </div>
 
-          {/* Category filter chips */}
-          {categories.length > 0 && (
-            <CategoryChips
-              categories={categories}
-              selected={selectedCategoryId}
-              onSelect={setSelectedCategoryId}
-            />
+          {/* Stage filter chips */}
+          {stageCategories.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-sage-400 mb-2">Browse by stage</p>
+              <FilterChips
+                categories={stageCategories}
+                selected={selectedStageId}
+                onSelect={setSelectedStageId}
+              />
+            </div>
+          )}
+
+          {/* Topic filter chips */}
+          {topicCategories.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-sage-400 mb-2">Filter by topic</p>
+              <FilterChips
+                categories={topicCategories}
+                selected={selectedTopicId}
+                onSelect={setSelectedTopicId}
+              />
+            </div>
           )}
 
           {/* Compose box */}
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-sage-200 px-6 py-5">
-            {/* Post type selector */}
+            {/* Post type toggle */}
             <div className="flex gap-2 mb-4">
               {(['moment', 'question'] as PostType[]).map(type => (
                 <button
@@ -926,20 +974,27 @@ export function CommunityFeed({
               ))}
             </div>
 
-            {/* Category picker */}
-            {categories.length > 0 && (
+            {/* Auto-stage label */}
+            {myStageLabel && (
+              <p className="text-[11px] text-sage-500 mb-3">
+                Posting in: <span className="font-medium text-brand-700">{myStageLabel.icon} {myStageLabel.name}</span>
+              </p>
+            )}
+
+            {/* Optional topic picker */}
+            {topicCategories.length > 0 && (
               <div className="mb-4">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-sage-400 mb-2">
-                  Category <span className="text-red-400">*</span>
+                  Topic <span className="normal-case tracking-normal text-sage-300">(optional)</span>
                 </p>
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {categories.map(cat => (
+                <div className="flex gap-2 flex-wrap">
+                  {topicCategories.map(cat => (
                     <button
                       key={cat.id}
                       type="button"
-                      onClick={() => setPostCategoryId(cat.id)}
-                      className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
-                        postCategoryId === cat.id
+                      onClick={() => setTopicCategoryId(topicCategoryId === cat.id ? null : cat.id)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
+                        topicCategoryId === cat.id
                           ? 'bg-brand-600 text-white border-brand-600'
                           : 'border-sage-200 text-sage-400 hover:border-sage-300 hover:text-sage-600'
                       }`}
@@ -979,7 +1034,7 @@ export function CommunityFeed({
               </span>
               <button
                 type="submit"
-                disabled={!draft.trim() || !postCategoryId || submitting}
+                disabled={!draft.trim() || submitting}
                 className="
                   flex items-center gap-2 px-5 py-2 rounded-xl bg-brand-600 text-white
                   text-[11px] uppercase tracking-[0.18em] font-medium
@@ -1000,13 +1055,13 @@ export function CommunityFeed({
           {filteredStagePosts.length === 0 ? (
             <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-10 text-center">
               <p className="font-display text-base italic text-sage-400 mb-1">
-                {selectedCategoryId ? 'No posts in this category yet' : 'No posts yet in your stage'}
+                {selectedStageId || selectedTopicId ? 'No posts match this filter' : 'No posts yet in your stage'}
               </p>
               <p className="text-xs text-sage-400">Be the first to share something with parents at the same stage.</p>
             </div>
           ) : (
             filteredStagePosts.map(post => (
-              <PostCard key={post.id} post={post} currentUserId={currentUserId} categories={categories} />
+              <PostCard key={post.id} post={post} currentUserId={currentUserId} topicCategories={topicCategories} />
             ))
           )}
         </>
@@ -1031,7 +1086,7 @@ export function CommunityFeed({
             </div>
           ) : (
             initialMemoryPosts.map(post => (
-              <PostCard key={post.id} post={post} currentUserId={currentUserId} categories={categories} />
+              <PostCard key={post.id} post={post} currentUserId={currentUserId} topicCategories={topicCategories} />
             ))
           )}
         </>
