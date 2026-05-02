@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin-client'
+import { CopyButton } from './CopyButton'
 
 function getAgeMonths(dob: string): number {
   const d = new Date(dob)
@@ -27,7 +28,7 @@ export default async function AdminUsersPage({
   // Fetch all profiles with active baby DOB
   const { data: profiles } = await db
     .from('profiles')
-    .select('id, full_name, email, parent_type, pregnancy_week, onboarding_complete, created_at, selected_baby_id, is_admin')
+    .select('id, full_name, email, phone, parent_type, pregnancy_week, onboarding_complete, created_at, selected_baby_id, is_admin')
     .order('created_at', { ascending: false })
 
   // Fetch all babies to derive ages
@@ -107,6 +108,7 @@ export default async function AdminUsersPage({
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Name</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Email</th>
+              <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Phone</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Type</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Baby / Week</th>
               <th className="px-5 py-3 text-left text-[10px] uppercase tracking-wider text-gray-400">Onboarding</th>
@@ -131,6 +133,12 @@ export default async function AdminUsersPage({
                     )}
                   </td>
                   <td className="px-5 py-3 text-gray-500">{r.email}</td>
+                  <td className="px-5 py-3 text-[11px]">
+                    {r.phone
+                      ? <CopyButton text={r.phone} />
+                      : <span className="text-gray-300">—</span>
+                    }
+                  </td>
                   <td className="px-5 py-3 capitalize text-gray-500">{r.parent_type ?? '—'}</td>
                   <td className="px-5 py-3 text-gray-500">{babyInfo}</td>
                   <td className="px-5 py-3">
@@ -153,7 +161,7 @@ export default async function AdminUsersPage({
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">
+                <td colSpan={8} className="px-5 py-8 text-center text-sm text-gray-400">
                   No users found.
                 </td>
               </tr>

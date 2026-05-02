@@ -8,12 +8,13 @@ import { createClient } from '@/lib/supabase/client'
 import type { ParentType } from '@/types'
 
 type Journey = 'expecting' | 'parent'
-type Step = 'invite' | 'journey' | 'detail'
+type Step = 'invite' | 'journey' | 'detail' | 'phone'
 
 export default function OnboardingPage() {
   const [step, setStep]               = useState<Step>('invite')
   const [journey, setJourney]         = useState<Journey | null>(null)
   const [pregnancyWeek, setPregnancyWeek] = useState<string>('')
+  const [phone, setPhone]             = useState<string>('')
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const [inviteCode, setInviteCode]   = useState<string>('')
@@ -92,7 +93,7 @@ export default function OnboardingPage() {
       return
     }
     const ok = await saveProfile({ parent_type: 'expecting', pregnancy_week: week })
-    if (ok) router.push('/dashboard')
+    if (ok) setStep('phone')
   }
 
   // ── Step 2b: already a parent ─────────────────────────────────────────────
@@ -100,7 +101,22 @@ export default function OnboardingPage() {
     setSaving(true)
     setError(null)
     const ok = await saveProfile({ parent_type: type })
-    if (ok) router.push('/dashboard')
+    if (ok) setStep('phone')
+  }
+
+  // ── Step 3: optional phone ────────────────────────────────────────────────
+  async function handlePhoneSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = phone.trim()
+    if (trimmed) {
+      setSaving(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('profiles').update({ phone: trimmed }).eq('id', user.id)
+      }
+      setSaving(false)
+    }
+    router.push('/dashboard')
   }
 
   // ── Shared styles ──────────────────────────────────────────────────────────
@@ -183,12 +199,14 @@ export default function OnboardingPage() {
             {step === 'journey'                             && 'Welcome to MindNest'}
             {step === 'detail' && journey === 'expecting'  && 'How far along are you?'}
             {step === 'detail' && journey === 'parent'     && 'How do you identify as a parent?'}
+            {step === 'phone'                               && 'One last thing'}
           </h1>
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'rgba(240,237,224,0.5)', margin: 0 }}>
             {step === 'invite'                              && 'Enter your invite code to get started.'}
             {step === 'journey'                             && "I'm Nest — let's get you set up."}
             {step === 'detail' && journey === 'expecting'  && 'Enter your current week of pregnancy.'}
             {step === 'detail' && journey === 'parent'     && 'No wrong answers here.'}
+            {step === 'phone'                               && "Your profile is all set."}
           </p>
         </div>
 
@@ -340,6 +358,48 @@ export default function OnboardingPage() {
               isLoading={saving}
             />
           </div>
+        )}
+
+        {/* ── Step 3: Optional phone ── */}
+        {step === 'phone' && (
+          <form onSubmit={handlePhoneSubmit} style={card}>
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Phone number (optional)</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="(555) 123-4567"
+                autoComplete="tel"
+                style={inputStyle}
+              />
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'rgba(240,237,224,0.35)', marginTop: 8, marginBottom: 0 }}>
+                We&apos;ll only use this to send helpful updates from Nest
+              </p>
+            </div>
+
+            {error && <div style={errorBox}>{error}</div>}
+
+            <button type="submit" disabled={saving} style={btnPrimary(saving)}>
+              {saving ? 'Saving…' : 'Continue to MindNest →'}
+            </button>
+
+            <p style={{ textAlign: 'center', marginTop: 18, marginBottom: 0 }}>
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+                  color: 'rgba(240,237,224,0.35)',
+                  textDecoration: 'underline',
+                  textDecorationColor: 'rgba(240,237,224,0.2)',
+                }}
+              >
+                Skip for now
+              </button>
+            </p>
+          </form>
         )}
 
         {/* Back link */}

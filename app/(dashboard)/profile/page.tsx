@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import { LinkTwinsButton } from '@/components/profile/LinkTwinsButton'
 import { VoiceSelector } from '@/components/profile/VoiceSelector'
+import { PhoneEditor } from '@/components/profile/PhoneEditor'
 
 function getAgeMonths(dateOfBirth: string): number {
   const dob  = new Date(dateOfBirth)
@@ -36,7 +37,7 @@ export default async function ProfilePage() {
   const [{ data: profile }, { data: subscription }, { data: babies }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, email, selected_baby_id, preferred_voice, beta_access')
+      .select('full_name, email, phone, selected_baby_id, preferred_voice, beta_access')
       .eq('id', user.id)
       .single(),
     supabase
@@ -75,6 +76,7 @@ export default async function ProfilePage() {
         <p className="text-[10px] uppercase tracking-[0.2em] text-sage-400 mb-3">Parent</p>
         <p className="text-base font-medium text-brand-900">{profile?.full_name || '—'}</p>
         <p className="text-sm text-sage-400 mt-0.5">{profile?.email}</p>
+        <PhoneEditor initialPhone={profile?.phone ?? null} />
       </section>
 
       {/* ── Children ────────────────────────────────────────────────────── */}
