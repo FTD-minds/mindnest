@@ -821,11 +821,10 @@ export function CommunityFeed({
   ageGroup,
   stageCategoryId,
 }: CommunityFeedProps) {
-  const [activeTab,         setActiveTab]         = useState<Tab>('stage')
-  const [stagePosts,        setStagePosts]        = useState<Post[]>(initialStagePosts)
-  const [selectedStageId,   setSelectedStageId]   = useState<string | null>(stageCategoryId ?? null)
-  const [selectedTopicId,   setSelectedTopicId]   = useState<string | null>(null)
-  const [topicCategoryId,   setTopicCategoryId]   = useState<string | null>(null)
+  const [activeTab,        setActiveTab]        = useState<Tab>('stage')
+  const [stagePosts,       setStagePosts]       = useState<Post[]>(initialStagePosts)
+  const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
+  const [topicCategoryId,  setTopicCategoryId]  = useState<string | null>(null)
   const [draft,             setDraft]             = useState('')
   const [postType,          setPostType]          = useState<PostType>('moment')
   const [submitting,        setSubmitting]        = useState(false)
@@ -838,11 +837,11 @@ export function CommunityFeed({
     { id: 'for_you',    label: 'For You'     },
   ]
 
-  const filteredStagePosts = stagePosts.filter(p => {
-    const stageMatch = selectedStageId === null || p.category_id === selectedStageId
-    const topicMatch = selectedTopicId  === null || p.topic_category_id === selectedTopicId
-    return stageMatch && topicMatch
-  })
+  const filteredStagePosts = selectedFilterId === null
+    ? stagePosts
+    : stagePosts.filter(p =>
+        p.category_id === selectedFilterId || p.topic_category_id === selectedFilterId
+      )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -930,28 +929,13 @@ export function CommunityFeed({
             </div>
           </div>
 
-          {/* Stage filter chips */}
-          {stageCategories.length > 0 && (
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-sage-400 mb-2">Browse by stage</p>
-              <FilterChips
-                categories={stageCategories}
-                selected={selectedStageId}
-                onSelect={setSelectedStageId}
-              />
-            </div>
-          )}
-
-          {/* Topic filter chips */}
-          {topicCategories.length > 0 && (
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-sage-400 mb-2">Filter by topic</p>
-              <FilterChips
-                categories={topicCategories}
-                selected={selectedTopicId}
-                onSelect={setSelectedTopicId}
-              />
-            </div>
+          {/* Combined filter chips — stage + topic in one row */}
+          {(stageCategories.length > 0 || topicCategories.length > 0) && (
+            <FilterChips
+              categories={[...stageCategories, ...topicCategories]}
+              selected={selectedFilterId}
+              onSelect={setSelectedFilterId}
+            />
           )}
 
           {/* Compose box */}
@@ -1055,7 +1039,7 @@ export function CommunityFeed({
           {filteredStagePosts.length === 0 ? (
             <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-10 text-center">
               <p className="font-display text-base italic text-sage-400 mb-1">
-                {selectedStageId || selectedTopicId ? 'No posts match this filter' : 'No posts yet in your stage'}
+                {selectedFilterId ? 'No posts match this filter' : 'No posts yet in your stage'}
               </p>
               <p className="text-xs text-sage-400">Be the first to share something with parents at the same stage.</p>
             </div>
