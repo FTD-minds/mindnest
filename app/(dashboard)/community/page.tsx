@@ -36,14 +36,7 @@ const AGE_GROUP_TO_CATEGORY_SLUG: Record<string, string> = {
   '3y+':      'toddler',
 }
 
-const POST_SELECT = `
-  id, content, baby_age_months, age_group, post_type,
-  likes_count, reactions, is_memory_card, milestone_id,
-  category_id, topic_category_id, comment_count,
-  nest_reply, nest_replied_at, created_at, user_id,
-  profiles ( full_name ),
-  community_categories ( name, icon, slug )
-`
+const POST_SELECT = `*, profiles ( full_name )`
 
 export default async function CommunityPage() {
   const supabase = createServerClient()
@@ -134,7 +127,8 @@ export default async function CommunityPage() {
       .select(POST_SELECT)
       .eq('is_approved', true)
       .order('created_at', { ascending: false })
-      .limit(40),
+      .limit(40)
+      .then(r => { console.log('[DEBUG] stage posts:', r.data?.length ?? 0, 'error:', r.error?.message ?? null); return r }),
 
     // Memory / milestone cards
     supabase
@@ -143,7 +137,8 @@ export default async function CommunityPage() {
       .eq('is_approved', true)
       .eq('is_memory_card', true)
       .order('created_at', { ascending: false })
-      .limit(20),
+      .limit(20)
+      .then(r => { console.log('[DEBUG] memory posts:', r.data?.length ?? 0, 'error:', r.error?.message ?? null); return r }),
 
     // Affiliate products
     (() => {
