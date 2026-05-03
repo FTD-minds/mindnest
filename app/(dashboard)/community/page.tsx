@@ -41,7 +41,8 @@ const POST_SELECT = `
   likes_count, reactions, is_memory_card, milestone_id,
   category_id, topic_category_id, comment_count,
   nest_reply, nest_replied_at, created_at, user_id,
-  profiles ( full_name )
+  profiles ( full_name ),
+  community_categories ( name, icon, slug )
 `
 
 export default async function CommunityPage() {

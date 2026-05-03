@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     .from('community_comments')
     .select(`
       id, post_id, parent_id, content, reactions, is_approved, created_at,
-      profiles!inner ( full_name )
+      profiles ( full_name )
     `)
     .eq('post_id', postId)
     .eq('is_approved', true)

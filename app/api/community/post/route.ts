@@ -171,7 +171,8 @@ export async function GET(request: Request) {
       id, content, baby_age_months, age_group, post_type, likes_count, reactions,
       is_memory_card, milestone_id, category_id, topic_category_id, comment_count,
       nest_reply, nest_replied_at, created_at, user_id,
-      profiles!inner ( full_name )
+      profiles ( full_name ),
+      community_categories ( name, icon, slug )
     `)
     .eq('is_approved', true)
     .order('created_at', { ascending: false })
