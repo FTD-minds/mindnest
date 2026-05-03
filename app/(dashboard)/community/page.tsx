@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { CommunityFeed } from '@/components/community/CommunityFeed'
 import Link from 'next/link'
 
+export const revalidate = 0
+
 function getAgeMonths(dateOfBirth: string): number {
   const dob = new Date(dateOfBirth)
   const now = new Date()
@@ -39,7 +41,7 @@ const POST_SELECT = `
   likes_count, reactions, is_memory_card, milestone_id,
   category_id, topic_category_id, comment_count,
   nest_reply, nest_replied_at, created_at, user_id,
-  profiles!inner ( full_name )
+  profiles ( full_name )
 `
 
 export default async function CommunityPage() {
@@ -189,6 +191,8 @@ export default async function CommunityPage() {
       my_reactions: reactMap[p.id] ?? [],
     }
   }
+
+  console.log('[community/page] rawStagePosts count:', rawStagePosts?.length ?? 0, '| first:', rawStagePosts?.[0]?.id ?? 'none')
 
   const stagePosts  = (rawStagePosts  ?? []).map(mapPost)
   const memoryPosts = (rawMemoryPosts ?? []).map(mapPost)

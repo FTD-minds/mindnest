@@ -824,6 +824,8 @@ export function CommunityFeed({
   const [activeTab,        setActiveTab]        = useState<Tab>('stage')
   const [stagePosts,       setStagePosts]       = useState<Post[]>(initialStagePosts)
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
+
+  console.log('[CommunityFeed] initialStagePosts:', initialStagePosts.length, '| selectedFilterId:', selectedFilterId, '| filteredCount will be:', selectedFilterId === null ? initialStagePosts.length : initialStagePosts.filter(p => p.category_id === selectedFilterId || p.topic_category_id === selectedFilterId).length)
   const [topicCategoryId,  setTopicCategoryId]  = useState<string | null>(null)
   const [draft,             setDraft]             = useState('')
   const [postType,          setPostType]          = useState<PostType>('moment')
@@ -1039,7 +1041,7 @@ export function CommunityFeed({
           {filteredStagePosts.length === 0 ? (
             <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-10 text-center">
               <p className="font-display text-base italic text-sage-400 mb-1">
-                {selectedFilterId ? 'No posts match this filter' : 'No posts yet in your stage'}
+                {selectedFilterId ? 'No posts match this filter' : 'No posts yet'}
               </p>
               <p className="text-xs text-sage-400">Be the first to share something with parents at the same stage.</p>
             </div>
