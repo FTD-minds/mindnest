@@ -552,16 +552,12 @@ function CommentBubble({
   return (
     <div className="flex gap-2.5">
       <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <span className="text-[10px] font-semibold text-sage-600">
-          {(comment.profiles?.full_name ?? 'M')[0].toUpperCase()}
-        </span>
+        <span className="text-[10px] font-semibold text-sage-600">M</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="bg-sage-50 rounded-xl px-3 py-2.5 border border-sage-100">
           <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[11px] font-medium text-brand-900">
-              {anonymiseName(comment.profiles?.full_name)}
-            </span>
+            <span className="text-[11px] font-medium text-brand-900">A mama</span>
             <span className="text-sage-200 text-[10px]">·</span>
             <span className="text-[10px] text-sage-400">{timeAgo(comment.created_at)}</span>
           </div>
