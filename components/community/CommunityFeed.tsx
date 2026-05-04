@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { SpinnerIcon } from '@/components/ui/icons'
-import { createClient } from '@/lib/supabase/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -929,41 +928,24 @@ export function CommunityFeed({
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
 
   useEffect(() => {
-    const supabase = createClient()
-
-    async function fetchPosts() {
-      const run = () =>
-        supabase
-          .from('community_posts')
-          .select('*, profiles(full_name)')
-          .eq('is_approved', true)
-          .order('created_at', { ascending: false })
-          .limit(50)
-
-      let { data, error } = await run()
-      console.log('[CommunityFeed] Fetch result:', data?.length, error?.message)
-
-      if ((!data || data.length === 0) && !error) {
-        await new Promise(r => setTimeout(r, 1000))
-        ;({ data, error } = await run())
-        console.log('[CommunityFeed] Retry result:', data?.length, error?.message)
-      }
-
-      if (data && data.length > 0) setStagePosts(data as Post[])
-      setLoading(false)
-    }
-
-    fetchPosts()
-
-    supabase
-      .from('nest_announcements')
-      .select('id, title, content, is_pinned, is_active, created_at')
-      .eq('is_active', true)
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data && data.length > 0) setAnnouncements(data as Announcement[])
+    fetch('/api/community/feed')
+      .then(r => r.json())
+      .then(data => {
+        console.log('[CommunityFeed] API returned:', data?.length, 'posts')
+        if (Array.isArray(data)) setStagePosts(data as Post[])
+        setLoading(false)
       })
+      .catch(err => {
+        console.error('[CommunityFeed] API error:', err)
+        setLoading(false)
+      })
+
+    fetch('/api/community/announcements')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setAnnouncements(data as Announcement[])
+      })
+      .catch(() => {})
   }, [])
   const [topicCategoryId,  setTopicCategoryId]  = useState<string | null>(null)
   const [draft,             setDraft]             = useState('')
