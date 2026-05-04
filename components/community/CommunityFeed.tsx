@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { SpinnerIcon } from '@/components/ui/icons'
+import { createClient } from '@/lib/supabase/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -822,10 +823,22 @@ export function CommunityFeed({
   stageCategoryId,
 }: CommunityFeedProps) {
   const [activeTab,        setActiveTab]        = useState<Tab>('stage')
-  const [stagePosts,       setStagePosts]       = useState<Post[]>(initialStagePosts)
+  const [stagePosts,       setStagePosts]       = useState<Post[]>(initialStagePosts ?? [])
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
 
-  console.log('[CommunityFeed] initialStagePosts:', initialStagePosts.length, '| selectedFilterId:', selectedFilterId, '| filteredCount will be:', selectedFilterId === null ? initialStagePosts.length : initialStagePosts.filter(p => p.category_id === selectedFilterId || p.topic_category_id === selectedFilterId).length)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('community_posts')
+      .select('*, profiles(full_name)')
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        console.log('[CommunityFeed] fetched:', data?.length ?? 0, 'error:', error?.message ?? null)
+        if (data && data.length > 0) setStagePosts(data as Post[])
+      })
+  }, [])
   const [topicCategoryId,  setTopicCategoryId]  = useState<string | null>(null)
   const [draft,             setDraft]             = useState('')
   const [postType,          setPostType]          = useState<PostType>('moment')
