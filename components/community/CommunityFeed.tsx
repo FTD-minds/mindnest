@@ -928,15 +928,16 @@ export function CommunityFeed({
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
 
   useEffect(() => {
-    fetch('/api/community/feed')
+    setLoading(true)
+    fetch('https://sbaqdbqcyabpvbldkouh.supabase.co/functions/v1/community-feed')
       .then(r => r.json())
       .then(data => {
-        console.log('[CommunityFeed] API returned:', data?.length, 'posts')
+        console.log('[CommunityFeed] Got posts:', data.length)
         if (Array.isArray(data)) setStagePosts(data as Post[])
         setLoading(false)
       })
       .catch(err => {
-        console.error('[CommunityFeed] API error:', err)
+        console.error('[CommunityFeed] Error:', err)
         setLoading(false)
       })
 
