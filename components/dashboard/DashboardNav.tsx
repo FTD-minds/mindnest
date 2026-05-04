@@ -73,7 +73,7 @@ export function DashboardNav({ isPremium = false }: DashboardNavProps) {
               <span className="font-medium">Upgrade to Premium</span>
             </Link>
           )}
-          <p className="text-[10px] text-sage-400 italic px-4 pt-3">Every age. Every stage.</p>
+          <p className="text-[10px] text-sage-400 italic px-4 pt-3">NEST HAS YOU COVERED.</p>
         </div>
       </aside>
 

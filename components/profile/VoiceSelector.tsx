@@ -7,7 +7,7 @@ const VOICES = [
   {
     name:        'Sarah',
     id:          'EXAVITQu4vr4xnSDxMaL',
-    description: 'Warm & reassuring — the default Nest voice',
+    description: 'Warm & reassuring',
     emoji:       '🌿',
   },
   {
@@ -19,7 +19,7 @@ const VOICES = [
   {
     name:        'Bella',
     id:          'hpp4J3VqNfWAUOO0d1Us',
-    description: 'Bright & warm — uplifting and friendly',
+    description: 'Warm & natural — the default Nest voice',
     emoji:       '🌸',
   },
   {
