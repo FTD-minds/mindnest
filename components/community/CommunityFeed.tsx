@@ -53,6 +53,15 @@ interface Comment {
   replies?:     Comment[]
 }
 
+interface Announcement {
+  id:         string
+  title:      string
+  content:    string
+  is_pinned:  boolean
+  is_active:  boolean
+  created_at: string
+}
+
 interface AffiliateProduct {
   id:             string
   title:          string
@@ -768,6 +777,95 @@ function ProductCard({ product }: { product: AffiliateProduct }) {
   )
 }
 
+// ── NestAvatar — slowly spinning Seed of Life orb ────────────────────────────
+
+function NestAvatar() {
+  return (
+    <svg
+      viewBox="0 0 220 220"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-10 h-10 rounded-full flex-shrink-0"
+      style={{
+        animation:  'spin 8s linear infinite',
+        filter:     'drop-shadow(0 0 5px rgba(74,138,90,0.45))',
+      }}
+    >
+      <defs>
+        <radialGradient id="naG" cx="38%" cy="32%" r="65%">
+          <stop offset="0%"   stopColor="#4a8a5a" />
+          <stop offset="30%"  stopColor="#2a5a35" />
+          <stop offset="65%"  stopColor="#1a3a22" />
+          <stop offset="100%" stopColor="#081408" />
+        </radialGradient>
+        <radialGradient id="naH" cx="35%" cy="28%" r="40%">
+          <stop offset="0%"   stopColor="#a0f0b0" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <clipPath id="naC"><circle cx="110" cy="110" r="98" /></clipPath>
+      </defs>
+      <circle cx="110" cy="110" r="108" fill="none" stroke="#2a6a35" strokeWidth="0.5" opacity="0.3" />
+      <circle cx="110" cy="110" r="98"  fill="url(#naG)" />
+      <g clipPath="url(#naC)" stroke="#7ae890" strokeWidth="0.8" fill="none" opacity="0.65">
+        <circle cx="110" cy="110" r="30" />
+        <circle cx="110" cy="80"  r="30" />
+        <circle cx="136" cy="95"  r="30" />
+        <circle cx="136" cy="125" r="30" />
+        <circle cx="110" cy="140" r="30" />
+        <circle cx="84"  cy="125" r="30" />
+        <circle cx="84"  cy="95"  r="30" />
+      </g>
+      <circle cx="110" cy="110" r="98" fill="url(#naH)" />
+    </svg>
+  )
+}
+
+// ── AnnouncementCard ──────────────────────────────────────────────────────────
+
+function AnnouncementCard({ announcement }: { announcement: Announcement }) {
+  return (
+    <article className="relative rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 overflow-hidden ring-1 ring-amber-100">
+      {/* Accent bar */}
+      <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400" />
+
+      <div className="px-6 pt-6 pb-5">
+        {/* Header row */}
+        <div className="flex items-start gap-3 mb-4">
+          <NestAvatar />
+          <div className="flex-1 min-w-0 pt-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[13px] font-semibold text-brand-900">Nest</span>
+              {/* Verified badge */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-brand-500 flex-shrink-0">
+                <path
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                />
+                <polyline points="9 12 11 14 15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {/* Announcement badge */}
+              <span className="text-[9px] uppercase tracking-[0.2em] font-semibold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">
+                Announcement
+              </span>
+              {announcement.is_pinned && (
+                <span className="text-[9px] text-amber-600">📌</span>
+              )}
+            </div>
+            <p className="text-[10px] text-amber-700 mt-0.5 opacity-70">
+              {timeAgo(announcement.created_at)}
+            </p>
+          </div>
+        </div>
+
+        {/* Title */}
+        <p className="text-[13px] font-semibold text-brand-900 mb-2">{announcement.title}</p>
+
+        {/* Content */}
+        <p className="text-sm text-brand-800 leading-relaxed whitespace-pre-wrap">{announcement.content}</p>
+      </div>
+    </article>
+  )
+}
+
 // ── FilterChips — reusable chip row ──────────────────────────────────────────
 
 function FilterChips({
@@ -824,10 +922,12 @@ export function CommunityFeed({
 }: CommunityFeedProps) {
   const [activeTab,        setActiveTab]        = useState<Tab>('stage')
   const [stagePosts,       setStagePosts]       = useState<Post[]>(initialStagePosts ?? [])
+  const [announcements,    setAnnouncements]    = useState<Announcement[]>([])
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
 
   useEffect(() => {
     const supabase = createClient()
+
     supabase
       .from('community_posts')
       .select('*, profiles(full_name)')
@@ -837,6 +937,16 @@ export function CommunityFeed({
       .then(({ data, error }) => {
         console.log('[CommunityFeed] fetched:', data?.length ?? 0, 'error:', error?.message ?? null)
         if (data && data.length > 0) setStagePosts(data as Post[])
+      })
+
+    supabase
+      .from('nest_announcements')
+      .select('id, title, content, is_pinned, is_active, created_at')
+      .eq('is_active', true)
+      .order('is_pinned', { ascending: false })
+      .order('created_at',  { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) setAnnouncements(data as Announcement[])
       })
   }, [])
   const [topicCategoryId,  setTopicCategoryId]  = useState<string | null>(null)
@@ -1049,6 +1159,11 @@ export function CommunityFeed({
               </button>
             </div>
           </form>
+
+          {/* Nest announcements — always shown regardless of filter */}
+          {announcements.map(a => (
+            <AnnouncementCard key={a.id} announcement={a} />
+          ))}
 
           {/* Stage feed */}
           {filteredStagePosts.length === 0 ? (

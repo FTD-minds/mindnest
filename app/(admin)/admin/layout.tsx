@@ -3,12 +3,14 @@ import { createServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 const NAV = [
-  { href: '/admin',               label: 'Overview'      },
-  { href: '/admin/users',         label: 'Users'         },
-  { href: '/admin/subscriptions', label: 'Subscriptions' },
-  { href: '/admin/invite-codes',  label: 'Invite Codes'  },
-  { href: '/admin/products',      label: 'Products'      },
-  { href: '/admin/support',       label: 'Support'       },
+  { href: '/admin',               label: 'Overview'       },
+  { href: '/admin/users',         label: 'Users'          },
+  { href: '/admin/subscriptions', label: 'Subscriptions'  },
+  { href: '/admin/invite-codes',  label: 'Invite Codes'   },
+  { href: '/admin/products',      label: 'Products'       },
+  { href: '/admin/comments',      label: 'Comments'       },
+  { href: '/admin/announcements', label: 'Announcements'  },
+  { href: '/admin/support',       label: 'Support'        },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
