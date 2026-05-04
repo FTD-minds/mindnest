@@ -920,31 +920,47 @@ export function CommunityFeed({
   ageGroup,
   stageCategoryId,
 }: CommunityFeedProps) {
+  const hasInitial = (initialStagePosts?.length ?? 0) > 0
+
   const [activeTab,        setActiveTab]        = useState<Tab>('stage')
   const [stagePosts,       setStagePosts]       = useState<Post[]>(initialStagePosts ?? [])
   const [announcements,    setAnnouncements]    = useState<Announcement[]>([])
+  const [loading,          setLoading]          = useState(!hasInitial)
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(stageCategoryId ?? null)
 
   useEffect(() => {
     const supabase = createClient()
 
-    supabase
-      .from('community_posts')
-      .select('*, profiles(full_name)')
-      .eq('is_approved', true)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data, error }) => {
-        console.log('[CommunityFeed] fetched:', data?.length ?? 0, 'error:', error?.message ?? null)
-        if (data && data.length > 0) setStagePosts(data as Post[])
-      })
+    async function fetchPosts() {
+      const run = () =>
+        supabase
+          .from('community_posts')
+          .select('*, profiles(full_name)')
+          .eq('is_approved', true)
+          .order('created_at', { ascending: false })
+          .limit(50)
+
+      let { data, error } = await run()
+      console.log('[CommunityFeed] Fetch result:', data?.length, error?.message)
+
+      if ((!data || data.length === 0) && !error) {
+        await new Promise(r => setTimeout(r, 1000))
+        ;({ data, error } = await run())
+        console.log('[CommunityFeed] Retry result:', data?.length, error?.message)
+      }
+
+      if (data && data.length > 0) setStagePosts(data as Post[])
+      setLoading(false)
+    }
+
+    fetchPosts()
 
     supabase
       .from('nest_announcements')
       .select('id, title, content, is_pinned, is_active, created_at')
       .eq('is_active', true)
       .order('is_pinned', { ascending: false })
-      .order('created_at',  { ascending: false })
+      .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data && data.length > 0) setAnnouncements(data as Announcement[])
       })
@@ -1166,7 +1182,11 @@ export function CommunityFeed({
           ))}
 
           {/* Stage feed */}
-          {filteredStagePosts.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <SpinnerIcon size={20} className="text-brand-400" />
+            </div>
+          ) : filteredStagePosts.length === 0 ? (
             <div className="bg-warm-100 border border-warm-400 rounded-2xl px-6 py-10 text-center">
               <p className="font-display text-base italic text-sage-400 mb-1">
                 {selectedFilterId ? 'No posts match this filter' : 'No posts yet'}
