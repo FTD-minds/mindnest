@@ -275,3 +275,32 @@ All skills available in Codex via /command syntax
 
 ## Global Knowledge Base
 See ~/Codex-knowledge/AI_STARTUP_PLAYBOOK.md for build strategy and guidelines.
+
+---
+
+## Automated Workflows & Auto-Loaded Rules
+
+The `.claude/` folder in this project contains rules, commands, and agents that are automatically applied by Claude Code.
+
+### Auto-Loaded Rules (`.claude/rules/`)
+
+| File | Paths Applied To | What It Enforces |
+|---|---|---|
+| `two-file-rule.md` | `MindNestLanding.tsx`, `mindnest-preview.html` | Both files must always be updated together in the same commit |
+| `supabase-clients.md` | `app/api/**`, pages, components, middleware | Server code uses `@/lib/supabase/server`; client code uses `@/lib/supabase/client`; `SUPABASE_SERVICE_ROLE_KEY` is server-only |
+| `claude-model-id.md` | `app/api/nest/**`, `app/api/activities/**`, `app/api/community/**`, `app/api/wellness/**`, `lib/claude/**` | All Anthropic calls must use `claude-haiku-4-5-20251001` — never change without explicit approval |
+
+### Slash Commands (`.claude/commands/`)
+
+| Command | Description |
+|---|---|
+| `/ship` | Runs type-check → lint → build → two-file diff check, then asks for two separate confirmations before committing and pushing. Never skips checks or pushes to main without explicit user confirmation. |
+
+### Agents (`.claude/agents/`)
+
+| Agent | Description |
+|---|---|
+| `code-reviewer` | Reviews PRs against MindNest conventions. Knows the full stack, deployment pipeline, and Nest tone. Issues are categorized as Critical (block merge), High, Medium, and Vibe notes. |
+
+### GitHub Actions
+The `@claude` GitHub Action is enabled on **FTD-minds/mindnest** using OAuth (Max plan). It responds to mentions in PRs and issues, and can run code reviews automatically via the `code-reviewer` agent.
